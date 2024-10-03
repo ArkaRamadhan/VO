@@ -13,7 +13,7 @@ import { useToken } from "../../../context/TokenContext";
 export function PerdinPage() {
   const [formConfig, setFormConfig] = useState({
     fields: [
-      { name: "no_perdin", label: "No Perdin", type: "text", required: false },
+      { name: "no_perdin", label: "No Perdin", type: "select", options: ["PD-ITS"],required: false },
       {
         name: "tanggal",
         label: "Tanggal Pengajuan",

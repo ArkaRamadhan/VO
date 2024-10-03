@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -11,12 +12,15 @@ import (
 	"path/filepath"
 	"project-its/initializers"
 	"project-its/models"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Azure/azure-storage-blob-go/azblob"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/xuri/excelize/v2"
+	"gorm.io/gorm"
 )
 
 type perdinRequest struct {
@@ -181,6 +185,30 @@ func DownloadFileHandlerPerdin(c *gin.Context) {
 	io.Copy(c.Writer, bodyStream)
 }
 
+func GetLatestPerdinNumber(NoPerdin string) (string, error) {
+	var lastPerdin models.Perdin
+	// Ubah pencarian untuk menggunakan format yang benar
+	searchPattern := fmt.Sprintf("%%/%s/%%", NoPerdin) // Ini akan mencari format seperti '%/ITS-SAG/M/%'
+	if err := initializers.DB.Where("no_perdin LIKE ?", searchPattern).Order("id desc").First(&lastPerdin).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "00001", nil // Jika tidak ada catatan, kembalikan 00001
+		}
+		return "", err
+	}
+
+	// Ambil nomor memo terakhir, pisahkan, dan tambahkan 1
+	parts := strings.Split(*lastPerdin.NoPerdin, "/")
+	if len(parts) > 0 {
+		number, err := strconv.Atoi(parts[0])
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("%05d", number+1), nil // Tambahkan 1 ke nomor terakhir
+	}
+
+	return "00001", nil
+}
+
 func PerdinCreate(c *gin.Context) {
 	// Mendapatkan data dari body request
 	var requestBody perdinRequest
@@ -206,6 +234,26 @@ func PerdinCreate(c *gin.Context) {
 			return
 		}
 		tanggal = &parsedTanggal
+	}
+
+	nomor, err := GetLatestPerdinNumber(*requestBody.NoPerdin)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get latest memo number"})
+		return
+	}
+
+	// Cek apakah nomor yang diterima adalah "00001"
+	if nomor == "00001" {
+		// Jika "00001", berarti ini adalah entri pertama
+		log.Println("This is the first memo entry.")
+	}
+
+	tahun := time.Now().Year()
+	// Menentukan format NoMemo berdasarkan kategori
+	if *requestBody.NoPerdin == "PD-ITS" {
+		noPerdin := fmt.Sprintf("%s/PD-ITS/%d", nomor, tahun)
+		requestBody.NoPerdin = &noPerdin
+		log.Printf("Generated NoPerdin for Perdin: %s", *requestBody.NoPerdin) // Log nomor memo
 	}
 
 	perdin := models.Perdin{
@@ -278,13 +326,34 @@ func PerdinUpdate(c *gin.Context) {
 	requestBody.CreateBy = c.MustGet("username").(string)
 	perdin.CreateBy = requestBody.CreateBy
 
-	if requestBody.Tanggal != nil {
-		tanggal, err := time.Parse("2006-01-02", *requestBody.Tanggal)
+	nomor, err := GetLatestPerdinNumber(*requestBody.NoPerdin)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get latest memo number"})
+		return
+	}
+
+	// Cek apakah nomor yang diterima adalah "00001"
+	if nomor == "00001" {
+		// Jika "00001", berarti ini adalah entri pertama
+		log.Println("This is the first memo entry.")
+	}
+
+	tahun := time.Now().Year()
+	// Menentukan format NoMemo berdasarkan kategori
+	if *requestBody.NoPerdin == "PD-ITS" {
+		noPerdin := fmt.Sprintf("%s/PD-ITS/%d", nomor, tahun)
+		requestBody.NoPerdin = &noPerdin
+		log.Printf("Generated NoPerdin for Perdin: %s", *requestBody.NoPerdin) // Log nomor memo
+	}
+
+	// Update tanggal jika diberikan dan tidak kosong
+	if requestBody.Tanggal != nil && *requestBody.Tanggal != "" {
+		parsedTanggal, err := time.Parse("2006-01-02", *requestBody.Tanggal)
 		if err != nil {
-			c.JSON(400, gin.H{"error": "Format tanggal tidak valid: " + err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date format"})
 			return
 		}
-		perdin.Tanggal = &tanggal
+		perdin.Tanggal = &parsedTanggal
 	}
 
 	if requestBody.NoPerdin != nil {
