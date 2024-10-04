@@ -47,7 +47,7 @@ func main() {
 	store := cookie.NewStore([]byte("secret"))
 	r.Use(sessions.Sessions("mysession", store))
 
-	r.GET("/updateAll", controllers.UpdateAllSheets)
+	// r.GET("/updateAll", controllers.UpdateAllSheets)
 	r.GET("/exportAll", controllers.ExportAllSheets)
 
 	// Setup session store
@@ -108,23 +108,40 @@ func main() {
 	r.DELETE("/beritaAcara/:id", controllers.BeritaAcaraDelete)
 	r.GET("/exportBeritaAcara", controllers.ExportBeritaAcaraHandler)
 	// r.GET("/updateBeritaAcara", controllers.UpdateSheetBeritaAcara)
-	// r.POST("/uploadBeritaAcara", controllers.ImportExcelBeritaAcara)
+	r.POST("/uploadBeritaAcara", controllers.ImportExcelBeritaAcara)
+
+	r.POST("/uploadFileBeritaAcara", controllers.UploadHandlerBeritaAcara)
+	r.GET("/downloadBeritaAcara/:id/:filename", controllers.DownloadFileHandlerBeritaAcara)
+	r.DELETE("/deleteBeritaAcara/:id/:filename", controllers.DeleteFileHandlerBeritaAcara)
+	r.GET("/filesBeritaAcara/:id", controllers.GetFilesByIDBeritaAcara)
 
 	r.GET("/surat", controllers.SuratIndex)
 	r.POST("/surat", controllers.SuratCreate)
+	r.GET("/surat/:id", controllers.SuratShow)
 	r.PUT("/surat/:id", controllers.SuratUpdate)
 	r.DELETE("/surat/:id", controllers.SuratDelete)
 	r.GET("/exportSurat", controllers.ExportSuratHandler)
 	// r.GET("/updateSurat", controllers.UpdateSheetSurat)
-	// r.POST("/uploadSurat", controllers.ImportExcelSurat)
+	r.POST("/uploadSurat", controllers.ImportExcelSurat)
+
+	r.POST("/uploadFileSurat", controllers.UploadHandlerSurat)
+	r.GET("/downloadSurat/:id/:filename", controllers.DownloadFileHandlerSurat)
+	r.DELETE("/deleteSurat/:id/:filename", controllers.DeleteFileHandlerSurat)
+	r.GET("/filesSurat/:id", controllers.GetFilesByIDSurat)
 
 	r.GET("/sk", controllers.SkIndex)
 	r.POST("/sk", controllers.SkCreate)
+	r.GET("/sk/:id", controllers.SkShow)
 	r.PUT("/sk/:id", controllers.SkUpdate)
 	r.DELETE("/sk/:id", controllers.SkDelete)
-	r.GET("/exportSk", controllers.ExportSKHandler)
+	r.GET("/exportSk", controllers.ExportSkHandler)
 	// r.GET("/updateSK", controllers.UpdateSheetSK)
-	// r.POST("/uploadSK", controllers.ImportExcelSK)
+	r.POST("/uploadSk", controllers.ImportExcelSk)
+
+	r.POST("/uploadFileSk", controllers.UploadHandlerSk)
+	r.GET("/downloadSk/:id/:filename", controllers.DownloadFileHandlerSk)
+	r.DELETE("/deleteSk/:id/:filename", controllers.DeleteFileHandlerSk)
+	r.GET("/filesSk/:id", controllers.GetFilesByIDSk)
 
 	r.POST("/uploadFileMemo", controllers.UploadHandlerMemo)
 	r.GET("/downloadMemo/:id/:filename", controllers.DownloadFileHandlerMemo)
@@ -135,6 +152,7 @@ func main() {
 	r.POST("/Project", controllers.ProjectCreate)
 	r.PUT("/Project/:id", controllers.ProjectUpdate)
 	r.GET("/Project", controllers.ProjectIndex)
+	r.GET("/Project/:id", controllers.ProjectShow)
 	r.DELETE("/Project/:id", controllers.ProjectDelete)
 	r.GET("/exportProject", controllers.ExportProjectHandler)
 	r.GET("/updateProject", controllers.UpdateSheetProject)
@@ -169,16 +187,19 @@ func main() {
 	r.GET("/booking-rapat", controllers.GetEventsBookingRapat)
 	r.POST("/booking-rapat", controllers.CreateEventBookingRapat)
 	r.DELETE("/booking-rapat/:id", controllers.DeleteEventBookingRapat)
+	r.GET("/exportBookingRapat", controllers.ExportBookingRapatToExcel)
 
 	// jadwal Rapat routes
 	r.GET("/jadwal-rapat", controllers.GetEventsRapat)
 	r.POST("/jadwal-rapat", controllers.CreateEventRapat)
 	r.DELETE("/jadwal-rapat/:id", controllers.DeleteEventRapat)
+	r.GET("/exportRapat", controllers.ExportJadwalRapatToExcel)
 
 	// Jadwal Cuti routes
 	r.GET("/jadwal-cuti", controllers.GetEventsCuti)
 	r.POST("/jadwal-cuti", controllers.CreateEventCuti)
 	r.DELETE("/jadwal-cuti/:id", controllers.DeleteEventCuti)
+	r.GET("/exportCuti", controllers.ExportJadwalCutiToExcel)
 
 	//Perdin routes
 	r.POST("/Perdin", controllers.PerdinCreate)

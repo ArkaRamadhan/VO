@@ -1,17 +1,23 @@
 package controllers
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"net/url"
+	"os"
 	"project-its/initializers"
 	"project-its/models"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/Azure/azure-storage-blob-go/azblob"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"github.com/xuri/excelize/v2"
 	"gorm.io/gorm"
 )
@@ -25,161 +31,161 @@ type SKRequest struct {
 	CreateBy string  `json:"create_by"`
 }
 
-// func init() {
-// 	err := godotenv.Load() // Memuat file .env
-// 	if err != nil {
-// 		log.Fatal("Error loading .env file")
-// 	}
+func init() {
+	err := godotenv.Load() // Memuat file .env
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 
-// 	accountNameMemo = os.Getenv("ACCOUNT_NAME") // Mengambil nilai dari .env
-// 	accountKeyMemo = os.Getenv("ACCOUNT_KEY")   // Mengambil nilai dari .env
-// 	containerNameMemo = "memoits"               // Mengambil nilai dari .env
-// }
+	accountNameSk = os.Getenv("ACCOUNT_NAME") // Mengambil nilai dari .env
+	accountKeySk = os.Getenv("ACCOUNT_KEY")   // Mengambil nilai dari .env
+	containerNameSk = "skits"                 // Mengambil nilai dari .env
+}
 
-// // Tambahkan variabel global untuk menyimpan kredensial
-// var (
-// 	accountNameMemo   string
-// 	accountKeyMemo    string
-// 	containerNameMemo string
-// )
+// Tambahkan variabel global untuk menyimpan kredensial
+var (
+	accountNameSk   string
+	accountKeySk    string
+	containerNameSk string
+)
 
-// func getBlobServiceClientMemo() azblob.ServiceURL {
-// 	creds, err := azblob.NewSharedKeyCredential(accountNameMemo, accountKeyMemo)
-// 	if err != nil {
-// 		panic("Failed to create shared key credential: " + err.Error())
-// 	}
+func getBlobServiceClientSk() azblob.ServiceURL {
+	creds, err := azblob.NewSharedKeyCredential(accountNameSk, accountKeySk)
+	if err != nil {
+		panic("Failed to create shared key credential: " + err.Error())
+	}
 
-// 	pipeline := azblob.NewPipeline(creds, azblob.PipelineOptions{})
+	pipeline := azblob.NewPipeline(creds, azblob.PipelineOptions{})
 
-// 	// Build the URL for the Azure Blob Storage account
-// 	URL, err := url.Parse(fmt.Sprintf("https://%s.blob.core.windows.net/", accountNameMemo))
-// 	if err != nil {
-// 		log.Fatal("Invalid URL format")
-// 	}
+	// Build the URL for the Azure Blob Storage account
+	URL, err := url.Parse(fmt.Sprintf("https://%s.blob.core.windows.net/", accountNameSk))
+	if err != nil {
+		log.Fatal("Invalid URL format")
+	}
 
-// 	// Create a ServiceURL object that wraps the URL and the pipeline
-// 	serviceURL := azblob.NewServiceURL(*URL, pipeline)
+	// Create a ServiceURL object that wraps the URL and the pipeline
+	serviceURL := azblob.NewServiceURL(*URL, pipeline)
 
-// 	return serviceURL
-// }
+	return serviceURL
+}
 
-// func UploadHandlerMemo(c *gin.Context) {
-// 	id := c.PostForm("id") // Mendapatkan ID dari form data
-// 	file, err := c.FormFile("file")
-// 	if err != nil {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "File diperlukan"})
-// 		return
-// 	}
+func UploadHandlerSk(c *gin.Context) {
+	id := c.PostForm("id") // Mendapatkan ID dari form data
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File diperlukan"})
+		return
+	}
 
-// 	// Membuat path berdasarkan ID
-// 	filename := fmt.Sprintf("%s/%s", id, file.Filename)
+	// Membuat path berdasarkan ID
+	filename := fmt.Sprintf("%s/%s", id, file.Filename)
 
-// 	// Membuka file
-// 	src, err := file.Open()
-// 	if err != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuka file"})
-// 		return
-// 	}
-// 	defer src.Close()
+	// Membuka file
+	src, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuka file"})
+		return
+	}
+	defer src.Close()
 
-// 	// Mengunggah file ke Azure Blob Storage
-// 	containerURL := getBlobServiceClientMemo().NewContainerURL(containerNameMemo)
-// 	blobURL := containerURL.NewBlockBlobURL(filename)
+	// Mengunggah file ke Azure Blob Storage
+	containerURL := getBlobServiceClientSk().NewContainerURL(containerNameSk)
+	blobURL := containerURL.NewBlockBlobURL(filename)
 
-// 	_, err = azblob.UploadStreamToBlockBlob(context.TODO(), src, blobURL, azblob.UploadStreamToBlockBlobOptions{})
-// 	if err != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengunggah file"})
-// 		return
-// 	}
+	_, err = azblob.UploadStreamToBlockBlob(context.TODO(), src, blobURL, azblob.UploadStreamToBlockBlobOptions{})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengunggah file"})
+		return
+	}
 
-// 	// Menambahkan log untuk menunjukkan ke kontainer mana file diunggah
-// 	log.Printf("File %s berhasil diunggah ke kontainer %s", filename, containerNameMemo)
+	// Menambahkan log untuk menunjukkan ke kontainer mana file diunggah
+	log.Printf("File %s berhasil diunggah ke kontainer %s", filename, containerNameSk)
 
-// 	c.JSON(http.StatusOK, gin.H{"message": "File berhasil diunggah"})
-// }
+	c.JSON(http.StatusOK, gin.H{"message": "File berhasil diunggah"})
+}
 
-// func GetFilesByIDMemo(c *gin.Context) {
-// 	id := c.Param("id") // Mendapatkan ID dari URL
+func GetFilesByIDSk(c *gin.Context) {
+	id := c.Param("id") // Mendapatkan ID dari URL
 
-// 	containerURL := getBlobServiceClient().NewContainerURL(containerNameMemo)
-// 	prefix := fmt.Sprintf("%s/", id) // Prefix untuk daftar blob di folder tertentu (ID)
+	containerURL := getBlobServiceClient().NewContainerURL(containerNameSk)
+	prefix := fmt.Sprintf("%s/", id) // Prefix untuk daftar blob di folder tertentu (ID)
 
-// 	var files []string
-// 	for marker := (azblob.Marker{}); marker.NotDone(); {
-// 		listBlob, err := containerURL.ListBlobsFlatSegment(context.TODO(), marker, azblob.ListBlobsSegmentOptions{
-// 			Prefix: prefix, // Hanya daftar blob dengan prefix yang ditentukan (folder)
-// 		})
-// 		if err != nil {
-// 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat daftar file"})
-// 			return
-// 		}
+	var files []string
+	for marker := (azblob.Marker{}); marker.NotDone(); {
+		listBlob, err := containerURL.ListBlobsFlatSegment(context.TODO(), marker, azblob.ListBlobsSegmentOptions{
+			Prefix: prefix, // Hanya daftar blob dengan prefix yang ditentukan (folder)
+		})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat daftar file"})
+			return
+		}
 
-// 		for _, blobInfo := range listBlob.Segment.BlobItems {
-// 			files = append(files, blobInfo.Name)
-// 		}
+		for _, blobInfo := range listBlob.Segment.BlobItems {
+			files = append(files, blobInfo.Name)
+		}
 
-// 		marker = listBlob.NextMarker
-// 	}
+		marker = listBlob.NextMarker
+	}
 
-// 	c.JSON(http.StatusOK, gin.H{"files": files}) // Pastikan mengembalikan array files
-// }
+	c.JSON(http.StatusOK, gin.H{"files": files}) // Pastikan mengembalikan array files
+}
 
-// // Fungsi untuk menghapus file dari Azure Blob Storage
-// func DeleteFileHandlerMemo(c *gin.Context) {
-// 	filename := c.Param("filename")
-// 	id := c.Param("id")
-// 	if filename == "" {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Filename is required"})
-// 		return
-// 	}
+// Fungsi untuk menghapus file dari Azure Blob Storage
+func DeleteFileHandlerSk(c *gin.Context) {
+	filename := c.Param("filename")
+	id := c.Param("id")
+	if filename == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Filename is required"})
+		return
+	}
 
-// 	// Membuat path lengkap berdasarkan ID dan nama file
-// 	fullPath := fmt.Sprintf("%s/%s", id, filename)
+	// Membuat path lengkap berdasarkan ID dan nama file
+	fullPath := fmt.Sprintf("%s/%s", id, filename)
 
-// 	containerURL := getBlobServiceClient().NewContainerURL(containerNameMemo)
-// 	blobURL := containerURL.NewBlockBlobURL(fullPath)
+	containerURL := getBlobServiceClient().NewContainerURL(containerNameSk)
+	blobURL := containerURL.NewBlockBlobURL(fullPath)
 
-// 	// Menghapus blob
-// 	_, err := blobURL.Delete(context.TODO(), azblob.DeleteSnapshotsOptionNone, azblob.BlobAccessConditions{})
-// 	if err != nil {
-// 		log.Printf("Error deleting file: %v", err) // Log kesalahan
-// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete file"})
-// 		return
-// 	}
+	// Menghapus blob
+	_, err := blobURL.Delete(context.TODO(), azblob.DeleteSnapshotsOptionNone, azblob.BlobAccessConditions{})
+	if err != nil {
+		log.Printf("Error deleting file: %v", err) // Log kesalahan
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete file"})
+		return
+	}
 
-// 	c.JSON(http.StatusOK, gin.H{"message": "File deleted successfully"}) // Pastikan ini ada
-// }
+	c.JSON(http.StatusOK, gin.H{"message": "File deleted successfully"}) // Pastikan ini ada
+}
 
-// // Fungsi untuk mendownload file dari Azure Blob Storage
-// func DownloadFileHandlerMemo(c *gin.Context) {
-// 	id := c.Param("id") // Mendapatkan ID dari URL
-// 	filename := c.Param("filename")
-// 	if filename == "" {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Filename is required"})
-// 		return
-// 	}
+// Fungsi untuk mendownload file dari Azure Blob Storage
+func DownloadFileHandlerSk(c *gin.Context) {
+	id := c.Param("id") // Mendapatkan ID dari URL
+	filename := c.Param("filename")
+	if filename == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Filename is required"})
+		return
+	}
 
-// 	// Membuat path lengkap berdasarkan ID dan nama file
-// 	fullPath := fmt.Sprintf("%s/%s", id, filename)
+	// Membuat path lengkap berdasarkan ID dan nama file
+	fullPath := fmt.Sprintf("%s/%s", id, filename)
 
-// 	containerURL := getBlobServiceClient().NewContainerURL(containerNameMemo)
-// 	blobURL := containerURL.NewBlockBlobURL(fullPath)
+	containerURL := getBlobServiceClient().NewContainerURL(containerNameSk)
+	blobURL := containerURL.NewBlockBlobURL(fullPath)
 
-// 	downloadResponse, err := blobURL.Download(context.TODO(), 0, azblob.CountToEnd, azblob.BlobAccessConditions{}, false, azblob.ClientProvidedKeyOptions{})
-// 	if err != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to download file"})
-// 		return
-// 	}
+	downloadResponse, err := blobURL.Download(context.TODO(), 0, azblob.CountToEnd, azblob.BlobAccessConditions{}, false, azblob.ClientProvidedKeyOptions{})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to download file"})
+		return
+	}
 
-// 	bodyStream := downloadResponse.Body(azblob.RetryReaderOptions{})
-// 	defer bodyStream.Close()
+	bodyStream := downloadResponse.Body(azblob.RetryReaderOptions{})
+	defer bodyStream.Close()
 
-// 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
-// 	c.Header("Content-Type", "application/octet-stream")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	c.Header("Content-Type", "application/octet-stream")
 
-// 	// Mengirimkan data file ke client
-// 	io.Copy(c.Writer, bodyStream)
-// }
+	// Mengirimkan data file ke client
+	io.Copy(c.Writer, bodyStream)
+}
 
 func GetLatestSuratSkNumber(NoSurat string) (string, error) {
 	var lastSurat models.Sk
@@ -400,7 +406,7 @@ func SkDelete(c *gin.Context) {
 
 }
 
-func exportSKToExcel(sks []models.Sk) (*excelize.File, error) {
+func exportSkToExcel(sKs []models.Sk) (*excelize.File, error) {
 	// Buat file Excel baru
 	f := excelize.NewFile()
 
@@ -428,36 +434,36 @@ func exportSKToExcel(sks []models.Sk) (*excelize.File, error) {
 	rowSAG := 2
 	rowISO := 2
 
-	// Loop melalui data sK
-	for _, sk := range sks {
+	// Loop melalui data memo
+	for _, sK := range sKs {
 		// Pastikan untuk dereferensikan pointer jika tidak nil
-		var tanggal, nosurat, perihal, pic string
-		if sk.Tanggal != nil {
-			tanggal = sk.Tanggal.Format("2006-01-02") // Format tanggal sesuai kebutuhan
+		var tanggal, noSurat, perihal, pic string
+		if sK.Tanggal != nil {
+			tanggal = sK.Tanggal.Format("2006-01-02") // Format tanggal sesuai kebutuhan
 		}
-		if sk.NoSurat != nil {
-			nosurat = *sk.NoSurat
+		if sK.NoSurat != nil {
+			noSurat = *sK.NoSurat
 		}
-		if sk.Perihal != nil {
-			perihal = *sk.Perihal
+		if sK.Perihal != nil {
+			perihal = *sK.Perihal
 		}
-		if sk.Pic != nil {
-			pic = *sk.Pic
+		if sK.Pic != nil {
+			pic = *sK.Pic
 		}
 
-		// Pisahkan NoMemo untuk mendapatkan tipe memo
-		parts := strings.Split(*sk.NoSurat, "/")
+		// Pisahkan NoSurat untuk mendapatkan tipe surat
+		parts := strings.Split(*sK.NoSurat, "/")
 		if len(parts) > 1 && parts[1] == "ITS-SAG" {
 			// Isi kolom SAG di sebelah kiri
 			f.SetCellValue("SK", fmt.Sprintf("A%d", rowSAG), tanggal)
-			f.SetCellValue("SK", fmt.Sprintf("B%d", rowSAG), nosurat)
+			f.SetCellValue("SK", fmt.Sprintf("B%d", rowSAG), noSurat)
 			f.SetCellValue("SK", fmt.Sprintf("C%d", rowSAG), perihal)
 			f.SetCellValue("SK", fmt.Sprintf("D%d", rowSAG), pic)
 			rowSAG++
 		} else if len(parts) > 1 && parts[1] == "ITS-ISO" {
 			// Isi kolom ISO di sebelah kanan
 			f.SetCellValue("SK", fmt.Sprintf("F%d", rowISO), tanggal)
-			f.SetCellValue("SK", fmt.Sprintf("G%d", rowISO), nosurat)
+			f.SetCellValue("SK", fmt.Sprintf("G%d", rowISO), noSurat)
 			f.SetCellValue("SK", fmt.Sprintf("H%d", rowISO), perihal)
 			f.SetCellValue("SK", fmt.Sprintf("I%d", rowISO), pic)
 			rowISO++
@@ -511,20 +517,20 @@ func exportSKToExcel(sks []models.Sk) (*excelize.File, error) {
 }
 
 // Handler untuk melakukan export Excel dengan Gin
-func ExportSKHandler(c *gin.Context) {
-	// Data Berita Acara contoh
-	var sks []models.Sk
-	initializers.DB.Find(&sks)
+func ExportSkHandler(c *gin.Context) {
+	// Data memo contoh
+	var sKs []models.Sk
+	initializers.DB.Find(&sKs)
 
 	// Buat file Excel
-	f, err := exportSKToExcel(sks)
+	f, err := exportSkToExcel(sKs)
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Gagal mengekspor data ke Excel")
 		return
 	}
 
 	// Set nama file dan header untuk download
-	fileName := fmt.Sprintf("MemoData_%s.xlsx", time.Now().Format("20060102"))
+	fileName := fmt.Sprintf("its_report.xlsx")
 	c.Header("Content-Disposition", "attachment; filename="+fileName)
 	c.Header("Content-Type", "application/octet-stream")
 
@@ -532,4 +538,124 @@ func ExportSKHandler(c *gin.Context) {
 	if err := f.Write(c.Writer); err != nil {
 		c.String(http.StatusInternalServerError, "Gagal menyimpan file Excel")
 	}
+}
+
+func ImportExcelSk(c *gin.Context) {
+	file, _, err := c.Request.FormFile("file")
+	if err != nil {
+		c.String(http.StatusBadRequest, "Error retrieving the file: %v", err)
+		return
+	}
+	defer file.Close()
+
+	tempFile, err := os.CreateTemp("", "*.xlsx")
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Error creating temporary file: %v", err)
+		return
+	}
+	defer os.Remove(tempFile.Name())
+
+	if _, err := io.Copy(tempFile, file); err != nil {
+		c.String(http.StatusInternalServerError, "Error copying file: %v", err)
+		return
+	}
+
+	tempFile.Seek(0, 0)
+	f, err := excelize.OpenFile(tempFile.Name())
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Error opening file: %v", err)
+		return
+	}
+	defer f.Close()
+
+	sheetName := "SK"
+	rows, err := f.GetRows(sheetName)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Error getting rows: %v", err)
+		return
+	}
+
+	log.Println("Processing rows...")
+	for i := range rows {
+		if i == 0 {
+			continue
+		}
+
+		// Ambil data dari kolom SAG (kiri)
+		var (
+			tanggalSAGStr, _ = f.GetCellValue(sheetName, fmt.Sprintf("A%d", i+1))
+			noSuratSAG, _     = f.GetCellValue(sheetName, fmt.Sprintf("B%d", i+1))
+			perihalSAG, _    = f.GetCellValue(sheetName, fmt.Sprintf("C%d", i+1))
+			picSAG, _        = f.GetCellValue(sheetName, fmt.Sprintf("D%d", i+1))
+		)
+
+		// Proses data SAG jika ada
+		if tanggalSAGStr != "" || noSuratSAG != "" || perihalSAG != "" || picSAG != "" {
+			tanggalSAG, err := parseDate(tanggalSAGStr)
+			if err != nil {
+				log.Printf("Error parsing SAG date from row %d: %v", i+1, err)
+
+			}
+
+			skSAG := models.Sk{
+				Tanggal:  &tanggalSAG,
+				NoSurat:   &noSuratSAG,
+				Perihal:  &perihalSAG,
+				Pic:      &picSAG,
+				CreateBy: c.MustGet("username").(string),
+			}
+
+			if err := initializers.DB.Create(&skSAG).Error; err != nil {
+				log.Printf("Error saving SAG record from row %d: %v", i+1, err)
+
+			} else {
+				log.Printf("SAG Row %d imported successfully", i+1)
+			}
+		}
+	}
+	// Proses data ISO
+	isoRows, err := f.GetRows(sheetName)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Error getting ISO rows: %v", err)
+		return
+	}
+	for i := range isoRows {
+		if i == 0 {
+			continue
+		}
+
+		// Ambil data dari kolom ISO (kanan)
+		var (
+			tanggalISOStr, _ = f.GetCellValue(sheetName, fmt.Sprintf("F%d", i+1))
+			noSuratISO, _     = f.GetCellValue(sheetName, fmt.Sprintf("G%d", i+1))
+			perihalISO, _    = f.GetCellValue(sheetName, fmt.Sprintf("H%d", i+1))
+			picISO, _        = f.GetCellValue(sheetName, fmt.Sprintf("I%d", i+1))
+		)
+
+		// Proses data ISO jika ada
+		if tanggalISOStr != "" || noSuratISO != "" || perihalISO != "" || picISO != "" {
+			tanggalISO, err := parseDate(tanggalISOStr)
+			if err != nil {
+				log.Printf("Error parsing ISO date from row %d: %v", i+1, err)
+
+			}
+
+			skISO := models.Sk{
+				Tanggal:  &tanggalISO,
+				NoSurat:   &noSuratISO,
+				Perihal:  &perihalISO,
+				Pic:      &picISO,
+				CreateBy: c.MustGet("username").(string),
+			}
+
+			if err := initializers.DB.Create(&skISO).Error; err != nil {
+				log.Printf("Error saving ISO record from row %d: %v", i+1, err)
+
+			} else {
+				log.Printf("ISO Row %d imported successfully", i+1)
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Data imported successfully, check logs for any skipped rows."})
 }

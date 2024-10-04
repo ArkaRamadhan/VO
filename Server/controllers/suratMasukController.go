@@ -369,7 +369,7 @@ func CreateExcelSuratMasuk(c *gin.Context) {
 	// Define sheet names
 	sheetNames := []string{"MEMO", "PROJECT", "PERDIN", "SURAT MASUK", "SURAT KELUAR", "ARSIP", "MEETING", "MEETING SCHEDULE"}
 
-	// Create sheets and set headers for "SAG" only
+	// Create sheets and set headers for "SURAT MASUK" only
 	for _, sheetName := range sheetNames {
 		if sheetName == "SURAT MASUK" {
 			f.NewSheet(sheetName)
@@ -385,20 +385,71 @@ func CreateExcelSuratMasuk(c *gin.Context) {
 		}
 	}
 
+	styleHeader, err := f.NewStyle(&excelize.Style{
+		Fill: excelize.Fill{
+			Type:    "pattern",
+			Color:   []string{"#4F81BD"},
+			Pattern: 1,
+		},
+		Font: &excelize.Font{
+			Bold:   true,
+			Size:   12,
+			Color:  "FFFFFF",
+		},
+		Border: []excelize.Border{
+			{Type: "left", Color: "000000", Style: 1},
+			{Type: "top", Color: "000000", Style: 1},
+			{Type: "bottom", Color: "000000", Style: 1},
+			{Type: "right", Color: "000000", Style: 1},
+		},
+		Alignment: &excelize.Alignment{
+			Horizontal: "center",
+			Vertical:   "center",
+		},
+	})
+
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Error creating style: %v", err)
+		return
+	}
+
+	err = f.SetCellStyle("SURAT MASUK", "A1", "E1", styleHeader)
+
 	// Fetch initial data from the database
 	var surat_masuks []models.SuratMasuk
 	initializers.DB.Find(&surat_masuks)
 
-	// Write initial data to the "SAG" sheet
+	// Write initial data to the "SURAT MASUK" sheet
 	surat_masukSheetName := "SURAT MASUK"
 	for i, surat_masuk := range surat_masuks {
-		tanggalString := surat_masuk.Tanggal.Format("2006-01-02")
+		tanggalString := surat_masuk.Tanggal.Format("2 January 2006")
 		rowNum := i + 2 // Start from the second row (first row is header)
-		f.SetCellValue(surat_masukSheetName, fmt.Sprintf("A%d", rowNum), surat_masuk.NoSurat)
-		f.SetCellValue(surat_masukSheetName, fmt.Sprintf("B%d", rowNum), surat_masuk.Title)
-		f.SetCellValue(surat_masukSheetName, fmt.Sprintf("C%d", rowNum), surat_masuk.RelatedDiv)
-		f.SetCellValue(surat_masukSheetName, fmt.Sprintf("D%d", rowNum), surat_masuk.DestinyDiv)
+		f.SetCellValue(surat_masukSheetName, fmt.Sprintf("A%d", rowNum), *surat_masuk.NoSurat)
+		f.SetCellValue(surat_masukSheetName, fmt.Sprintf("B%d", rowNum), *surat_masuk.Title)
+		f.SetCellValue(surat_masukSheetName, fmt.Sprintf("C%d", rowNum), *surat_masuk.RelatedDiv)
+		f.SetCellValue(surat_masukSheetName, fmt.Sprintf("D%d", rowNum), *surat_masuk.DestinyDiv)
 		f.SetCellValue(surat_masukSheetName, fmt.Sprintf("E%d", rowNum), tanggalString)
+
+		f.SetColWidth("SURAT MASUK", "A", "A", 27)
+		f.SetColWidth("SURAT MASUK", "B", "B", 40)
+		f.SetColWidth("SURAT MASUK", "C", "C", 20)
+		f.SetColWidth("SURAT MASUK", "D", "D", 20)
+		f.SetColWidth("SURAT MASUK", "E", "E", 20)
+		f.SetRowHeight("SURAT MASUK", 1, 20)
+
+		styleData, err := f.NewStyle(&excelize.Style{
+			Border: []excelize.Border{
+				{Type: "left", Color: "000000", Style: 1},
+				{Type: "top", Color: "000000", Style: 1},
+				{Type: "bottom", Color: "000000", Style: 1},
+				{Type: "right", Color: "000000", Style: 1},
+			},
+		})
+		if err != nil {
+			c.String(http.StatusInternalServerError, "Error creating style: %v", err)
+			return
+		}
+		err = f.SetCellStyle(surat_masukSheetName, fmt.Sprintf("A%d", rowNum), fmt.Sprintf("E%d", rowNum), styleData)
 	}
 
 	// Delete the default "Sheet1" sheet
@@ -465,7 +516,7 @@ func UpdateSheetSuratMasuk(c *gin.Context) {
 		f.SetCellValue(sheetName, fmt.Sprintf("B%d", rowNum), surat_masuk.Title)
 		f.SetCellValue(sheetName, fmt.Sprintf("C%d", rowNum), surat_masuk.RelatedDiv)
 		f.SetCellValue(sheetName, fmt.Sprintf("D%d", rowNum), surat_masuk.DestinyDiv)
-		f.SetCellValue(sheetName, fmt.Sprintf("E%d", rowNum), surat_masuk.Tanggal.Format("02-01-2006"))
+		f.SetCellValue(sheetName, fmt.Sprintf("E%d", rowNum), surat_masuk.Tanggal.Format("2 January 2006"))
 	}
 
 	if err := f.SaveAs(filePath); err != nil {

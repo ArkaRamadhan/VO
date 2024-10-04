@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"project-its/initializers"
 	"project-its/models"
+	"strconv"
 	"time"
 
 	"github.com/Azure/azure-storage-blob-go/azblob"
@@ -308,7 +309,7 @@ func CreateExcelArsip(c *gin.Context) {
 	f := excelize.NewFile()
 
 	// Define sheet names
-	sheetNames := []string{"MEMO", "PROJECT", "PERDIN", "SURAT MASUK", "SURAT KELUAR", "ARSIP", "MEETING", "MEETING SCHEDULE"}
+	sheetNames := []string{"MEMO", "BERITA ACARA", "SK", "SURAT", "PROJECT", "PERDIN", "SURAT MASUK", "SURAT KELUAR", "ARSIP", "MEETING", "MEETING SCHEDULE"}
 
 	// Create sheets and set headers for "ARSIP" only
 	for _, sheetName := range sheetNames {
@@ -325,10 +326,37 @@ func CreateExcelArsip(c *gin.Context) {
 
 			// Set column widths for better readability
 			f.SetColWidth(sheetName, "A", "H", 20)
+			f.SetRowHeight(sheetName, 1, 20)
 		} else {
 			f.NewSheet(sheetName)
 		}
 	}
+
+	styleHeader, err := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{
+			Bold: true,
+		},
+		Fill: excelize.Fill{
+			Type:    "pattern",
+			Color:   []string{"#6EB6F8"},
+			Pattern: 1,
+		},
+		Alignment: &excelize.Alignment{
+			Horizontal: "center",
+			Vertical:   "center",
+		},
+		Border: []excelize.Border{
+			{Type: "left", Color: "000000", Style: 1},
+			{Type: "right", Color: "000000", Style: 1},
+			{Type: "top", Color: "000000", Style: 1},
+			{Type: "bottom", Color: "000000", Style: 1},
+		},
+	})
+	if err != nil {
+		return
+	}
+
+	err = f.SetCellStyle("ARSIP", "A1", "H1", styleHeader)
 
 	// Fetch initial data from the database
 	var arsips []models.Arsip
@@ -350,6 +378,20 @@ func CreateExcelArsip(c *gin.Context) {
 		f.SetCellValue(arsipSheetName, fmt.Sprintf("G%d", rowNum), arsip.TanggalDokumen.Format("2006-01-02"))
 		f.SetCellValue(arsipSheetName, fmt.Sprintf("H%d", rowNum), arsip.TanggalPenyerahan.Format("2006-01-02"))
 	}
+
+	styleAll, err := f.NewStyle(&excelize.Style{
+		Border: []excelize.Border{
+			{Type: "left", Color: "000000", Style: 1},
+			{Type: "top", Color: "000000", Style: 1},
+			{Type: "right", Color: "000000", Style: 1},
+			{Type: "bottom", Color: "000000", Style: 1},
+		},
+	})
+	if err != nil {
+		return
+	}
+
+	err = f.SetCellStyle("ARSIP", "A2", "H"+strconv.Itoa(len(arsips)+1), styleAll)
 
 	// Delete the default "Sheet1" sheet
 	if err := f.DeleteSheet("Sheet1"); err != nil {
@@ -515,7 +557,7 @@ func ImportExcelArsip(c *gin.Context) {
 			Keterangan:        &keterangan,
 			TanggalDokumen:    &tanggalDokumenString,
 			TanggalPenyerahan: &tanggalPenyerahanString,
-			// CreateBy:          c.MustGet("username").(string),
+			CreateBy:          c.MustGet("username").(string),
 		}
 
 		// Simpan ke database

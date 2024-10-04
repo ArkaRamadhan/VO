@@ -10,8 +10,9 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import listPlugin from "@fullcalendar/list";
+import { Excel } from "../../../../Utilities/Excel"; // Import komponen Excel
 
-export const Calendar = ({ view, get, add, remove }) => {
+export const Calendar = ({ view, get, add, remove, excel }) => {
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [formData, setFormData] = useState({});
   const [currentEvents, setCurrentEvents] = useState([]);
@@ -102,8 +103,9 @@ export const Calendar = ({ view, get, add, remove }) => {
   return (
     <div className="grid grid-cols-2fr">
       <div className="bg-gray-50 p-[15px] rounded w-[200px] max-h-[85vh] overflow-auto">
-        <h2 className="text-xl mt-0 mb-2 font-bold">
+        <h2 className="text-xl mt-0 mb-2 font-bold flex justify-between">
           {currentEvents.length} Jadwal
+          {excel && <Excel linkExportThis={excel.exportThis} linkUpdateThis={excel.updateThis} importExcel={excel.import} />}
         </h2>
         <div className="flex flex-col gap-2">
           {currentEvents.length === 0 ? (
@@ -155,7 +157,7 @@ export const Calendar = ({ view, get, add, remove }) => {
           headerToolbar={{
             left: "prev,next today",
             center: "title",
-            right: "dayGridMonth,timeGridWeek,timeGridDay,listMonth",
+            right: "dayGridMonth,timeGridWeek,timeGridDay,listMonth,exportExcel",
           }}
           buttonText={{
             today: "Hari Ini",
@@ -174,6 +176,8 @@ export const Calendar = ({ view, get, add, remove }) => {
           eventClick={handleEventClick}
         />
       </div>
+
+
       {/* ModalForm */}
       <Modal show={formModalOpen} size="xl" onClose={onCloseFormModal} popup>
         <Modal.Header />

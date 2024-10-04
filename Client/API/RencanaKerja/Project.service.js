@@ -37,6 +37,18 @@ export function updateProject(id, data) {
     });
 }
 
+export function getProjectShow(id) {
+  return axios
+    .get(`${API_URL}/${id}`)
+    .then((response) => {
+      console.log(response.data.project);
+      return response.data.project;
+    })
+    .catch((error) => {
+      throw new Error(`Gagal mengambil data. Alasan: ${error.message}`);
+    });
+}
+
 export function deleteProject(id) {
   return axios
   .delete(`${API_URL}/${id}`)

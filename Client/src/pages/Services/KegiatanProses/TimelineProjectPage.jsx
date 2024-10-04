@@ -20,6 +20,9 @@ export const TimelineProjectPage = () => {
         getResources={getResources}
         insertResource={addResource}
         removeResource={deleteResource}
+        excel={{
+          exportThis: "exportTimelineProject",
+        }}
       />
     </App>
   );

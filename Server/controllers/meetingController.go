@@ -380,9 +380,9 @@ func CreateExcelMeeting(c *gin.Context) {
 	f := excelize.NewFile()
 
 	// Define sheet names
-	sheetNames := []string{"MEMO", "PROJECT", "PERDIN", "SURAT MASUK", "SURAT KELUAR", "ARSIP", "MEETING", "MEETING SCHEDULE"}
+	sheetNames := []string{"MEMO", "BERITA ACARA", "SK", "SURAT", "PROJECT", "PERDIN", "SURAT MASUK", "SURAT KELUAR", "ARSIP", "MEETING", "MEETING SCHEDULE"}
 
-	// Create sheets and set headers for "SAG" only
+	// Create sheets and set headers for "MEETING" only
 	for _, sheetName := range sheetNames {
 		if sheetName == "MEETING" {
 			f.NewSheet(sheetName)
@@ -394,33 +394,181 @@ func CreateExcelMeeting(c *gin.Context) {
 			f.SetCellValue(sheetName, "F1", "TANGGAL TARGET")
 			f.SetCellValue(sheetName, "G1", "TANGGAL ACTUAL")
 
-			f.SetColWidth(sheetName, "A", "G", 20)
 		} else {
 			f.NewSheet(sheetName)
 		}
 	}
 
+	f.SetColWidth("MEETING", "A", "A", 25)
+	f.SetColWidth("MEETING", "B", "B", 40)
+	f.SetColWidth("MEETING", "C", "C", 17)
+	f.SetColWidth("MEETING", "D", "D", 27)
+	f.SetColWidth("MEETING", "E", "E", 25)
+	f.SetColWidth("MEETING", "F", "F", 20)
+	f.SetColWidth("MEETING", "G", "G", 20)
+	f.SetRowHeight("MEETING", 1, 35)
+
+	FillColor, err := f.NewStyle(&excelize.Style{
+		Fill: excelize.Fill{Type: "pattern", Color: []string{"eba55b"}, Pattern: 1},
+		Alignment: &excelize.Alignment{
+			Horizontal: "center",
+			Vertical: "center",
+		},
+		Border: []excelize.Border{
+			{Type: "right", Color: "000000", Style: 1},
+		},
+	})
+	if err != nil {
+		fmt.Println(err)
+	}
+	err = f.SetCellStyle("MEETING", "A1", "G1", FillColor)
+
+	wrapstyle, err := f.NewStyle(&excelize.Style{
+		Alignment: &excelize.Alignment{
+			WrapText: true,
+			Vertical: "center",
+		},
+	})
+	if err != nil {
+		fmt.Println(err)
+	}
+	
 	// Fetch initial data from the database
 	var meetings []models.Meeting
 	initializers.DB.Find(&meetings)
+	
+	err = f.SetCellStyle("MEETING", "A2", fmt.Sprintf("G%d", len(meetings)+1), wrapstyle)
 
-	// Write initial data to the "SAG" sheet
+	// Write initial data to the "MEETING" sheet
 	meetingSheetName := "MEETING"
 	for i, meeting := range meetings {
 		tanggalTargetString := meeting.TanggalTarget.Format("2006-01-02")
 		tanggalActualString := meeting.TanggalActual.Format("2006-01-02")
 		rowNum := i + 2 // Start from the second row (first row is header)
-		f.SetCellValue(meetingSheetName, fmt.Sprintf("A%d", rowNum), meeting.Task)
-		f.SetCellValue(meetingSheetName, fmt.Sprintf("B%d", rowNum), meeting.TindakLanjut)
-		f.SetCellValue(meetingSheetName, fmt.Sprintf("C%d", rowNum), meeting.Status)
-		if meeting.UpdatePengerjaan != nil {
-			f.SetCellValue(meetingSheetName, fmt.Sprintf("D%d", rowNum), *meeting.UpdatePengerjaan)
-		} else {
-			f.SetCellValue(meetingSheetName, fmt.Sprintf("D%d", rowNum), "")
+
+		// Check for nil pointers and use the actual values
+		task := ""
+		if meeting.Task != nil {
+			task = *meeting.Task
 		}
-		f.SetCellValue(meetingSheetName, fmt.Sprintf("E%d", rowNum), meeting.Pic)
+		tindakLanjut := ""
+		if meeting.TindakLanjut != nil {
+			tindakLanjut = *meeting.TindakLanjut
+		}
+		status := ""
+		if meeting.Status != nil {
+			status = *meeting.Status
+		}
+		updatePengerjaan := ""
+		if meeting.UpdatePengerjaan != nil {
+			updatePengerjaan = *meeting.UpdatePengerjaan
+		}
+		pic := ""
+		if meeting.Pic != nil {
+			pic = *meeting.Pic
+		}
+
+		f.SetCellValue(meetingSheetName, fmt.Sprintf("A%d", rowNum), task)
+		f.SetCellValue(meetingSheetName, fmt.Sprintf("B%d", rowNum), tindakLanjut)
+		f.SetCellValue(meetingSheetName, fmt.Sprintf("C%d", rowNum), status) // Set status value
+
+		// Apply styles based on status
+		var styleID int
+		switch status {
+		case "Done":
+			styleID, err = f.NewStyle(&excelize.Style{
+				Font: &excelize.Font{
+					Color: "00ff80",
+				},
+				Alignment: &excelize.Alignment{
+					Horizontal: "center",
+					Vertical: "center",
+				},
+				Border: []excelize.Border{
+					{Type: "left", Color: "000000", Style: 1},
+					{Type: "top", Color: "000000", Style: 1},
+					{Type: "bottom", Color: "000000", Style: 1},
+					{Type: "right", Color: "000000", Style: 1},
+				},
+			})
+		case "On Progress":
+			styleID, err = f.NewStyle(&excelize.Style{
+				Font: &excelize.Font{
+					Color: "ffa500",
+				},
+				Alignment: &excelize.Alignment{
+					Horizontal: "center",
+					Vertical: "center",
+				},
+				Border: []excelize.Border{
+					{Type: "left", Color: "000000", Style: 1},
+					{Type: "top", Color: "000000", Style: 1},
+					{Type: "bottom", Color: "000000", Style: 1},
+					{Type: "right", Color: "000000", Style: 1},
+				},
+			})
+		case "Cancel":
+			styleID, err = f.NewStyle(&excelize.Style{
+				Font: &excelize.Font{
+					Color: "FF3131",
+				},
+				Alignment: &excelize.Alignment{
+					Horizontal: "center",
+					Vertical: "center",
+				},
+				Border: []excelize.Border{
+					{Type: "left", Color: "000000", Style: 1},
+					{Type: "top", Color: "000000", Style: 1},
+					{Type: "bottom", Color: "000000", Style: 1},
+					{Type: "right", Color: "000000", Style: 1},
+				},
+			})
+		default:
+			styleID, err = f.NewStyle(&excelize.Style{
+				Border: []excelize.Border{
+					{Type: "left", Color: "000000", Style: 1},
+					{Type: "top", Color: "000000", Style: 1},
+					{Type: "bottom", Color: "000000", Style: 1},
+					{Type: "right", Color: "000000", Style: 1},
+				},
+			})
+		}
+		if err != nil {
+			fmt.Println(err)
+		}
+		f.SetCellStyle(meetingSheetName, fmt.Sprintf("C%d", rowNum), fmt.Sprintf("C%d", rowNum), styleID)
+
+		// Apply border style to other cells
+		borderStyle, err := f.NewStyle(&excelize.Style{
+			Border: []excelize.Border{
+				{Type: "left", Color: "000000", Style: 1},
+				{Type: "top", Color: "000000", Style: 1},
+				{Type: "bottom", Color: "000000", Style: 1},
+				{Type: "right", Color: "000000", Style: 1},
+			},
+			Alignment: &excelize.Alignment{
+				WrapText: true,
+			},
+		})
+		if err != nil {
+			fmt.Println(err)
+		}
+		f.SetCellStyle(meetingSheetName, fmt.Sprintf("A%d", rowNum), fmt.Sprintf("A%d", rowNum), borderStyle)
+		f.SetCellStyle(meetingSheetName, fmt.Sprintf("B%d", rowNum), fmt.Sprintf("B%d", rowNum), borderStyle)
+		f.SetCellStyle(meetingSheetName, fmt.Sprintf("D%d", rowNum), fmt.Sprintf("D%d", rowNum), borderStyle)
+		f.SetCellStyle(meetingSheetName, fmt.Sprintf("E%d", rowNum), fmt.Sprintf("E%d", rowNum), borderStyle)
+		f.SetCellStyle(meetingSheetName, fmt.Sprintf("F%d", rowNum), fmt.Sprintf("F%d", rowNum), borderStyle)
+		f.SetCellStyle(meetingSheetName, fmt.Sprintf("G%d", rowNum), fmt.Sprintf("G%d", rowNum), borderStyle)
+
+		f.SetCellValue(meetingSheetName, fmt.Sprintf("D%d", rowNum), updatePengerjaan)
+		f.SetCellValue(meetingSheetName, fmt.Sprintf("E%d", rowNum), pic)
 		f.SetCellValue(meetingSheetName, fmt.Sprintf("F%d", rowNum), tanggalTargetString)
 		f.SetCellValue(meetingSheetName, fmt.Sprintf("G%d", rowNum), tanggalActualString)
+
+		// Calculate row height based on content length
+		maxContentLength := max(len(task), len(tindakLanjut), len(status), len(updatePengerjaan), len(pic))
+		rowHeight := calculateRowHeight(maxContentLength)
+		f.SetRowHeight(meetingSheetName, rowNum, rowHeight)
 	}
 
 	// Delete the default "Sheet1" sheet
@@ -439,6 +587,25 @@ func CreateExcelMeeting(c *gin.Context) {
 	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", fileName))
 	c.Writer.Write(buf.Bytes())
+}
+
+// Helper function to calculate row height based on content length
+func calculateRowHeight(contentLength int) float64 {
+	// Define a base height and a multiplier for content length
+	baseHeight := 15.0
+	multiplier := 0.5
+	return baseHeight + (float64(contentLength) * multiplier)
+}
+
+// Helper function to find the maximum length among multiple strings
+func max(lengths ...int) int {
+	maxLength := 0
+	for _, length := range lengths {
+		if length > maxLength {
+			maxLength = length
+		}
+	}
+	return maxLength
 }
 
 func UpdateSheetMeeting(c *gin.Context) {

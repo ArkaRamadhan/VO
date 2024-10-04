@@ -14,6 +14,9 @@ export function BookingRapatPage() {
         get={getBookingRapat}
         add={addBookingRapat}
         remove={deleteBookingRapat}
+        excel={{
+          exportThis: "exportBookingRapat",
+        }}
       />
     </App>
   );

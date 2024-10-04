@@ -63,10 +63,11 @@ export function ArsipPage() {
           set={addArsip}
           update={updateArsip}
           remove={deleteArsip}
-          excel
-          ExportExcel="exportArsip"
-          UpdateExcel="updateArsip"
-          ImportExcel="uploadArsip"
+          excel={{
+            exportThis: "exportArsip",
+            updateThis: "updateArsip",
+            import: "uploadArsip",
+          }}
           InfoColumn={true}
           UploadArsip={{
             get: "files",

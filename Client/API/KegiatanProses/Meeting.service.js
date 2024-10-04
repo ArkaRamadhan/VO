@@ -38,6 +38,18 @@ export function updateMeeting(id, data) {
     });
 }
 
+export function getMeetingShow(id) {
+  return axios
+    .get(`${API_URL}/${id}`)
+    .then((response) => {
+      console.log(response.data.meeting);
+      return response.data.meeting;
+    })
+    .catch((error) => {
+      throw new Error(`Gagal mengambil data. Alasan: ${error.message}`);
+    });
+}
+
 export function deleteMeeting(id) {
   return axios
     .delete(`${API_URL}/${id}`)

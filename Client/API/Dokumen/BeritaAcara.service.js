@@ -37,16 +37,17 @@ export function updateBeritaAcara(id, data) {
     });
 }
 
-export function getBeritaAcaraShow(id, callback) {
+export function getBeritaAcaraShow(id) {
   return axios
     .get(`${API_URL}/${id}`)
     .then((response) => {
-      callback(response.data.beritaAcara);
+      return response.data.beritaAcara;
     })
     .catch((error) => {
       throw new Error(`Gagal mengambil data. Alasan: ${error.message}`);
     });
 }
+
 
 export function deleteBeritaAcara(id) {
   return axios

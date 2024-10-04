@@ -360,8 +360,7 @@ func CreateExcelPerdin(c *gin.Context) {
 	f := excelize.NewFile()
 
 	// Define sheet names
-	sheetNames := []string{"MEMO", "PROJECT", "PERDIN", "SURAT MASUK", "SURAT KELUAR", "ARSIP", "MEETING", "MEETING SCHEDULE"}
-
+	sheetNames := []string{"MEMO", "BERITA ACARA", "SK", "SURAT", "PROJECT", "PERDIN", "SURAT MASUK", "SURAT KELUAR", "ARSIP", "MEETING", "MEETING SCHEDULE"}
 	// Create sheets and set headers for "SAG" only
 	for _, sheetName := range sheetNames {
 		if sheetName == "PERDIN" {
@@ -371,8 +370,9 @@ func CreateExcelPerdin(c *gin.Context) {
 			f.SetCellValue(sheetName, "C1", "Deskripsi")
 			f.MergeCell(sheetName, "C1", "D1") // Menggabungkan sel C1 dan D1
 
-			// Mengatur lebar kolom
-			f.SetColWidth(sheetName, "A", "D", 20)
+			f.SetColWidth(sheetName, "A", "B", 20)
+			f.SetColWidth(sheetName, "C", "D", 28)
+			f.SetRowHeight(sheetName, 1, 28)
 		} else {
 			f.NewSheet(sheetName)
 		}
@@ -382,17 +382,61 @@ func CreateExcelPerdin(c *gin.Context) {
 	var perdins []models.Perdin
 	initializers.DB.Find(&perdins)
 
-	// Write initial data to the "SAG" sheet
+	// Write initial data to the "PERDIN" sheet
 	perdinSheetName := "PERDIN"
 	for i, perdin := range perdins {
-		tanggalString := perdin.Tanggal.Format("2006-01-02")
+		var tanggalString string
+		if perdin.Tanggal == nil {
+			tanggalString = "" // Atau nilai default lain yang Anda inginkan
+		} else {
+			tanggalString = perdin.Tanggal.Format("2006-01-02")
+		}
 		rowNum := i + 2 // Start from the second row (first row is header)
 
-		f.SetCellValue(perdinSheetName, fmt.Sprintf("A%d", rowNum), perdin.NoPerdin)
+		f.SetCellValue(perdinSheetName, fmt.Sprintf("A%d", rowNum), getStringValue(perdin.NoPerdin))
 		f.SetCellValue(perdinSheetName, fmt.Sprintf("B%d", rowNum), tanggalString)
-		f.SetCellValue(perdinSheetName, fmt.Sprintf("C%d", rowNum), perdin.Hotel)
-		f.SetCellValue(perdinSheetName, fmt.Sprintf("D%d", rowNum), perdin.Transport)
+		f.SetCellValue(perdinSheetName, fmt.Sprintf("C%d", rowNum), getStringValue(perdin.Hotel))
+		f.SetCellValue(perdinSheetName, fmt.Sprintf("D%d", rowNum), getStringValue(perdin.Transport))
+
+		f.SetRowHeight(perdinSheetName, rowNum, 15)
 	}
+
+	// Apply border to all cells
+	style, err := f.NewStyle(&excelize.Style{
+		Border: []excelize.Border{
+			{Type: "left", Color: "000000", Style: 1},
+			{Type: "top", Color: "000000", Style: 1},
+			{Type: "bottom", Color: "000000", Style: 1},
+			{Type: "right", Color: "000000", Style: 1},
+		},
+	})
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Error creating style: %v", err)
+		return
+	}
+
+	// Apply the style to the entire sheet
+	f.SetCellStyle(perdinSheetName, "A1", fmt.Sprintf("D%d", len(perdins)+1), style)
+
+	styleHeader, err := f.NewStyle(&excelize.Style{
+		Alignment: &excelize.Alignment{
+			Horizontal: "center",
+			Vertical:   "center",
+		},
+		Border: []excelize.Border{
+			{Type: "left", Color: "000000", Style: 1},
+			{Type: "top", Color: "000000", Style: 1},
+			{Type: "bottom", Color: "000000", Style: 1},
+			{Type: "right", Color: "000000", Style: 1},
+		},
+	})
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Error creating style: %v", err)
+		return
+	}
+
+	// Apply the style to the entire sheet
+	f.SetCellStyle(perdinSheetName, "A1", "D1", styleHeader)
 
 	// Delete the default "Sheet1" sheet
 	if err := f.DeleteSheet("Sheet1"); err != nil {
@@ -573,4 +617,12 @@ func ImportExcelPerdin(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Data imported successfully, check logs for any skipped rows."})
+}
+
+// Helper function to get the string value from a pointer
+func getStringValue(str *string) string {
+	if str == nil {
+		return ""
+	}
+	return *str
 }

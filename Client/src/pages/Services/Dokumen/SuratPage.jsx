@@ -7,8 +7,11 @@ import {
   deleteSurat,
   getSurats,
   updateSurat,
+  getSuratShow,
 } from "../../../../API/Dokumen/Surat.service";
 import { useToken } from "../../../context/TokenContext";
+import { Modal, Button } from "flowbite-react"; // Import Modal dan Button dari flowbite-react
+import { FormatDate } from "../../../Utilities/FormatDate";
 
 export function SuratPage() {
   const [formConfig, setFormConfig] = useState({
@@ -33,6 +36,19 @@ export function SuratPage() {
     userRole = decoded.role;
   }
 
+  const [isShowModalOpen, setIsShowModalOpen] = useState(false);
+  const [selectedSurat, setSelectedSurat] = useState(null);
+
+  const handleShow = async (id) => {
+    try {
+      const surat = await getSuratShow(id);
+      setSelectedSurat(surat);
+      setIsShowModalOpen(true);
+    } catch (error) {
+      console.error("Error fetching surat:", error);
+    }
+  };
+
   return (
     <App services={formConfig.services}>
       <div className="overflow-auto">
@@ -44,10 +60,12 @@ export function SuratPage() {
           set={addSurat}
           update={updateSurat}
           remove={deleteSurat}
-          excel
-          ExportExcel="exportSurat"
-          UpdateExcel="updateSurat"
-          ImportExcel="uploadSurat"
+          excel={{
+            exportThis: "exportSurat",
+            updateThis: "updateSurat",
+            importThis: "uploadSurat",
+          }}
+          OnShow={handleShow}
           InfoColumn={true}
           UploadArsip={{
             get: "filesSurat",
@@ -57,7 +75,27 @@ export function SuratPage() {
           }}
         />
         {/* End Table */}
+
       </div>
+      {/* Show Modal */}
+      <Modal show={isShowModalOpen} onClose={() => setIsShowModalOpen(false)}>
+        <Modal.Header>Detail Surat</Modal.Header>
+        <Modal.Body>
+          {selectedSurat && (
+            <div className="grid grid-cols-2 gap-4">
+              <p className="font-semibold">Tanggal:</p>
+              <p>{FormatDate(selectedSurat.tanggal)}</p>
+              <p className="font-semibold">Nomor Surat:</p>
+              <p>{selectedSurat.no_surat}</p>
+              <p className="font-semibold">Perihal:</p>
+              <p>{selectedSurat.perihal}</p>
+              <p className="font-semibold">Pic:</p>
+              <p>{selectedSurat.pic}</p>
+            </div>
+          )}
+        </Modal.Body>
+      </Modal>
+      {/* End Show Modal */}
     </App>
   );
 }

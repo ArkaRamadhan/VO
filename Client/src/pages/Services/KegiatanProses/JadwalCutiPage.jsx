@@ -14,6 +14,9 @@ export function JadwalCutiPage() {
         get={getCutis}
         add={addCuti}
         remove={deleteCuti}
+        excel={{
+          exportThis: "exportCuti",
+        }}
       />
     </App>
   );

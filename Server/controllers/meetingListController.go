@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"project-its/initializers"
 	"project-its/models"
+	"strconv"
 	"time"
 
 	"github.com/Azure/azure-storage-blob-go/azblob"
@@ -27,8 +28,8 @@ type MeetingListRequest struct {
 	Waktu    *string `json:"waktu"`
 	Selesai  *string `json:"selesai"`
 	Tempat   *string `json:"tempat"`
-	Pic      *string  `json:"pic"`
-	Status   *string  `json:"status"`
+	Pic      *string `json:"pic"`
+	Status   *string `json:"status"`
 	CreateBy string  `json:"create_by"`
 	Info     string  `json:"info"`
 	Color    string  `json:"color"`
@@ -256,10 +257,13 @@ func MeetingListShow(c *gin.Context) {
 
 	var meetingList models.MeetingSchedule
 
-	initializers.DB.First(&meetingList, id)
+	if err := initializers.DB.First(&meetingList, id).Error; err != nil {
+		c.JSON(404, gin.H{"error": "Meeting not found"}) // Tambahkan log ini
+		return
+	}
 
 	c.JSON(200, gin.H{
-		"meetinglist": meetingList,
+		"meetingschedule": meetingList,
 	})
 
 }
@@ -389,7 +393,7 @@ func CreateExcelMeetingList(c *gin.Context) {
 	// Define sheet names
 	sheetNames := []string{"MEMO", "PROJECT", "PERDIN", "SURAT MASUK", "SURAT KELUAR", "ARSIP", "MEETING", "MEETING SCHEDULE"}
 
-	// Create sheets and set headers for "SAG" only
+	// Create sheets and set headers for "MEETING SCHEDULE" only
 	for _, sheetName := range sheetNames {
 		if sheetName == "MEETING SCHEDULE" {
 			f.NewSheet(sheetName)
@@ -403,23 +407,56 @@ func CreateExcelMeetingList(c *gin.Context) {
 			f.SetCellValue(sheetName, "H1", "PIC")
 
 			f.SetColWidth(sheetName, "A", "H", 20)
+			f.SetRowHeight(sheetName, 1, 20)
 		} else {
 			f.NewSheet(sheetName)
 		}
 	}
 
+	styleHeader, err := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{
+			Bold: true,
+		},
+		Fill: excelize.Fill{
+			Type:    "pattern",
+			Color:   []string{"#6EB6F8"},
+			Pattern: 1,
+		},
+		Alignment: &excelize.Alignment{
+			Horizontal: "center",
+			Vertical:   "center",
+		},
+		Border: []excelize.Border{
+			{Type: "left", Color: "000000", Style: 1},
+			{Type: "right", Color: "000000", Style: 1},
+			{Type: "top", Color: "000000", Style: 1},
+			{Type: "bottom", Color: "000000", Style: 1},
+		},
+	})
+	if err != nil {
+		return
+	}
+
+	err = f.SetCellStyle("MEETING SCHEDULE", "A1", "H1", styleHeader)
+
 	// Fetch initial data from the database
 	var meetingList []models.MeetingSchedule
 	initializers.DB.Find(&meetingList)
 
-	// Write initial data to the "SAG" sheet
+	// Define styles for different statuses
+	styleDone, _ := f.NewStyle(&excelize.Style{Font: &excelize.Font{Color: "0000FF", Bold: true}, Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"}})       // Biru
+	styleCancel, _ := f.NewStyle(&excelize.Style{Font: &excelize.Font{Color: "FF0000", Bold: true}, Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"}})     // Merah
+	styleReschedule, _ := f.NewStyle(&excelize.Style{Font: &excelize.Font{Color: "0000FF", Bold: true}, Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"}}) // Biru
+	styleOnProgress, _ := f.NewStyle(&excelize.Style{Font: &excelize.Font{Color: "FFA500", Bold: true}, Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"}}) // Orange
+
+	// Write initial data to the "MEETING SCHEDULE" sheet
 	meetingListSheetName := "MEETING SCHEDULE"
 	for i, meetingList := range meetingList {
 		tanggalString := meetingList.Tanggal.Format("2006-01-02")
 		rowNum := i + 2 // Start from the second row (first row is header)
-		f.SetCellValue(meetingListSheetName, fmt.Sprintf("A%d", rowNum), meetingList.Hari)
+		f.SetCellValue(meetingListSheetName, fmt.Sprintf("A%d", rowNum), *meetingList.Hari)
 		f.SetCellValue(meetingListSheetName, fmt.Sprintf("B%d", rowNum), tanggalString)
-		f.SetCellValue(meetingListSheetName, fmt.Sprintf("C%d", rowNum), meetingList.Perihal)
+		f.SetCellValue(meetingListSheetName, fmt.Sprintf("C%d", rowNum), *meetingList.Perihal)
 
 		// Handle Waktu
 		if meetingList.Waktu != nil {
@@ -441,9 +478,35 @@ func CreateExcelMeetingList(c *gin.Context) {
 			f.SetCellValue(meetingListSheetName, fmt.Sprintf("F%d", rowNum), "")
 		}
 
-		f.SetCellValue(meetingListSheetName, fmt.Sprintf("G%d", rowNum), meetingList.Status)
-		f.SetCellValue(meetingListSheetName, fmt.Sprintf("H%d", rowNum), meetingList.Pic)
+		f.SetCellValue(meetingListSheetName, fmt.Sprintf("G%d", rowNum), *meetingList.Status)
+		f.SetCellValue(meetingListSheetName, fmt.Sprintf("H%d", rowNum), *meetingList.Pic)
+
+		// Apply style based on status
+		switch *meetingList.Status {
+		case "Done":
+			f.SetCellStyle(meetingListSheetName, fmt.Sprintf("G%d", rowNum), fmt.Sprintf("G%d", rowNum), styleDone)
+		case "Cancel":
+			f.SetCellStyle(meetingListSheetName, fmt.Sprintf("G%d", rowNum), fmt.Sprintf("G%d", rowNum), styleCancel)
+		case "Reschedule":
+			f.SetCellStyle(meetingListSheetName, fmt.Sprintf("G%d", rowNum), fmt.Sprintf("G%d", rowNum), styleReschedule)
+		case "On Progress":
+			f.SetCellStyle(meetingListSheetName, fmt.Sprintf("G%d", rowNum), fmt.Sprintf("G%d", rowNum), styleOnProgress)
+		}
 	}
+
+	styleAll, err := f.NewStyle(&excelize.Style{
+		Border: []excelize.Border{
+			{Type: "left", Color: "000000", Style: 1},
+			{Type: "right", Color: "000000", Style: 1},
+			{Type: "top", Color: "000000", Style: 1},
+			{Type: "bottom", Color: "000000", Style: 1},
+		},
+	})
+	if err != nil {
+		return
+	}
+
+	err = f.SetCellStyle("MEETING SCHEDULE", "A2", "H"+strconv.Itoa(len(meetingList)+1), styleAll)
 
 	// Delete the default "Sheet1" sheet
 	if err := f.DeleteSheet("Sheet1"); err != nil {

@@ -7,8 +7,11 @@ import {
   deleteSk,
   getSks,
   updateSk,
+  getSkShow
 } from "../../../../API/Dokumen/Sk.service";
 import { useToken } from "../../../context/TokenContext";
+import { Modal, Button } from "flowbite-react"; // Import Modal dan Button dari flowbite-react
+import { FormatDate } from "../../../Utilities/FormatDate";
 
 export function SkPage() {
   const [formConfig, setFormConfig] = useState({
@@ -33,6 +36,20 @@ export function SkPage() {
     userRole = decoded.role;
   }
 
+  const [isShowModalOpen, setIsShowModalOpen] = useState(false);
+  const [selectedSk, setSelectedSk] = useState(null);
+
+  const handleShow = async (id) => {
+    try {
+      const sk = await getSkShow(id);
+      setSelectedSk(sk);
+      console.log(sk);
+      setIsShowModalOpen(true);
+    } catch (error) {
+      console.error("Error fetching SK:", error);
+    }
+  };
+
   return (
     <App services={formConfig.services}>
       <div className="overflow-auto">
@@ -44,10 +61,11 @@ export function SkPage() {
           set={addSk}
           update={updateSk}
           remove={deleteSk}
-          excel
-          ExportExcel="exportSk"
-          UpdateExcel="updateSk"
-          ImportExcel="uploadSk"
+          excel={{
+            exportThis: "exportSk",
+            updateThis: "updateSk",
+            import  : "uploadSk",
+          }}
           InfoColumn={true}
           UploadArsip={{
             get: "filesSk",
@@ -55,9 +73,29 @@ export function SkPage() {
             download: "downloadSk",
             delete: "deleteSk",
           }}
+          OnShow={handleShow}
         />
         {/* End Table */}
       </div>
+      {/* Show Modal */}
+      <Modal show={isShowModalOpen} onClose={() => setIsShowModalOpen(false)}>
+        <Modal.Header>Detail SK</Modal.Header>
+        <Modal.Body>
+          {selectedSk && (
+            <div className="grid grid-cols-2 gap-4">
+              <p className="font-semibold">Tanggal:</p>
+              <p>{FormatDate(selectedSk.tanggal)}</p>
+              <p className="font-semibold">Nomor Surat:</p>
+              <p>{selectedSk.no_surat}</p>
+              <p className="font-semibold">Perihal:</p>
+              <p>{selectedSk.perihal}</p>
+              <p className="font-semibold">PIC:</p>
+              <p>{selectedSk.pic}</p>
+            </div>
+          )}
+        </Modal.Body>
+      </Modal>
+      {/* End Show Modal */}
     </App>
   );
 }

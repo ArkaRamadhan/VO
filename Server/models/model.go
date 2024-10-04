@@ -232,14 +232,24 @@ type Perdin struct {
 
 func (i *Perdin) MarshalJSON() ([]byte, error) {
 	type Alias Perdin
-	tanggalFormatted := i.Tanggal.Format("2006-01-02")
-	return json.Marshal(&struct {
-		Tanggal *string `json:"tanggal"`
-		*Alias
-	}{
-		Tanggal: &tanggalFormatted,
-		Alias:   (*Alias)(i),
-	})
+	if i.Tanggal == nil {
+		return json.Marshal(&struct {
+			Tanggal string `json:"tanggal"`
+			*Alias
+		}{
+			Tanggal: "",
+			Alias:   (*Alias)(i),
+		})
+	} else {
+		tanggalFormatted := i.Tanggal.Format("2006-01-02")
+		return json.Marshal(&struct {
+			Tanggal string `json:"tanggal"`
+			*Alias
+		}{
+			Tanggal: tanggalFormatted,
+			Alias:   (*Alias)(i),
+		})
+	}
 }
 
 // model for project
@@ -283,7 +293,7 @@ func (p *Project) MarshalJSON() ([]byte, error) {
 	if p.Bulan == nil {
 		bulanFormatted = ""
 	} else {
-		bulanFormatted = p.Bulan.Format("2006-01")
+		bulanFormatted = p.Bulan.Format("2006-01-02")
 	}
 
 	return json.Marshal(&struct {

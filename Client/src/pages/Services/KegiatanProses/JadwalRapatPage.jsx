@@ -14,6 +14,9 @@ export function JadwalRapatPage() {
         get={getRapats}
         add={addRapat}
         remove={deleteRapat}
+        excel={{
+          exportThis: "exportRapat",
+        }}
       />
     </App>
   );

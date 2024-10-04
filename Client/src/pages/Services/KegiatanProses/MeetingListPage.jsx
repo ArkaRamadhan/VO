@@ -7,8 +7,11 @@ import {
   deleteMeetingList,
   getMeetingList,
   updateMeetingList,
+  getMeetingListShow,
 } from "../../../../API/KegiatanProses/MeetingSchedule.service";
 import { useToken } from "../../../context/TokenContext";
+import { Modal } from "flowbite-react";
+import { FormatDate } from "../../../Utilities/FormatDate";
 
 export function MeetingListPage() {
   const [formConfig, setFormConfig] = useState({
@@ -52,6 +55,20 @@ export function MeetingListPage() {
     userRole = decoded.role;
   }
 
+  const [isShowModalOpen, setIsShowModalOpen] = useState(false);
+  const [selectedMeetingList, setSelectedMeetingList] = useState(null);
+  console.log(selectedMeetingList);
+
+  const handleShow = async (id) => {
+    try {
+      const meetingList = await getMeetingListShow(id);
+      console.log("Fetched meeting list:", meetingList);     setSelectedMeetingList(meetingList);
+      setIsShowModalOpen(true);
+    } catch (error) {
+      console.error("Error fetching memo:", error);
+    }
+  };
+
   return (
     <App services={formConfig.services}>
       <div className="overflow-auto">
@@ -63,10 +80,11 @@ export function MeetingListPage() {
           set={addMeetingList}
           update={updateMeetingList}
           remove={deleteMeetingList}
-          excel
-          ExportExcel="exportMeetingList"
-          UpdateExcel="updateMeetingList"
-          ImportExcel="uploadMeetingList"
+          excel={{
+            exportThis: "exportMeetingList",
+            updateThis: "updateMeetingList",
+            import: "uploadMeetingList",
+          }}
           InfoColumn={true}
           StatusColumn={true}
           UploadArsip={{
@@ -75,9 +93,40 @@ export function MeetingListPage() {
             download: "downloadMeetingList",
             delete: "deleteMeetingList",
           }}
+          OnShow={handleShow}
         />
         {/* End Table */}
       </div>
+
+      <Modal show={isShowModalOpen} onClose={() => setIsShowModalOpen(false)}>
+        <Modal.Header>
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+            Meeting Detail
+          </h3>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedMeetingList && (
+            <div className="grid grid-cols-2 gap-4">
+              <p className="font-semibold">Hari :</p>
+              <p>{selectedMeetingList.hari}</p>
+              <p className="font-semibold">Tanggal :</p>
+              <p>{FormatDate(selectedMeetingList.tanggal)}</p>
+              <p className="font-semibold">Perihal :</p>
+              <p>{selectedMeetingList.perihal}</p>
+              <p className="font-semibold">Waktu :</p>
+              <p>{selectedMeetingList.waktu}</p>
+              <p className="font-semibold">Selesai :</p>
+              <p>{selectedMeetingList.selesai}</p>
+              <p className="font-semibold">Tempat :</p>
+              <p>{selectedMeetingList.tempat}</p>
+              <p className="font-semibold">Status :</p>
+              <p>{selectedMeetingList.status}</p>
+              <p className="font-semibold">Pic :</p>
+              <p>{selectedMeetingList.pic}</p>
+            </div>
+          )}
+        </Modal.Body>
+      </Modal>
     </App>
   );
 }

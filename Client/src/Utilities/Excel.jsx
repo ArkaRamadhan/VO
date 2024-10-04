@@ -8,7 +8,7 @@ export const Excel = (props) => {
   const [file, setFile] = useState(null);
   const handleFileChange = (event) => {
     setFile(event.target.files[0]);
-  };
+  };  
 
   const UpdateThis = async () => {
     const result = await Swal.fire({
@@ -57,6 +57,23 @@ export const Excel = (props) => {
       } catch (error) {
         Swal.fire("Gagal!", "Error saat update data:", "error");
       }
+    }
+  };
+
+  const exportAll = async () => {
+    try {
+      const response = await axios.get("http://localhost:8080/exportAll", {
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'all_sheets.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      Swal.fire("Gagal!", "Error saat mengekspor data:", "error");
     }
   };
 
@@ -109,30 +126,36 @@ export const Excel = (props) => {
   return (
     <div className="flex gap-1.5 items-center justify-center">
       <Dropdown color="success" label="Excel" dismissOnClick={false}>
-        <Dropdown.Item className="flex justify-between">
-          <Dropdown color="info" label="EXPORT" dismissOnClick={false}>
-            <Dropdown.Item>
-              <a href={`http://localhost:8080/${linkExportThis}`}>This Sheet</a>
-            </Dropdown.Item>
-            <Dropdown.Item>
-              <a href="http://localhost:8080/exportAll">All Sheets</a>
-            </Dropdown.Item>
-          </Dropdown>
-          <Dropdown color="warning" label="UPDATE" dismissOnClick={false}>
-            <Dropdown.Item>
-              <a onClick={UpdateThis}>This Sheet</a>
-            </Dropdown.Item>
-            <Dropdown.Item>
-              <a onClick={UpdateAll}>All Sheet</a>
-            </Dropdown.Item>
-          </Dropdown>
+        <Dropdown.Item className="flex gap-2 justify-between">
+          {linkExportThis && (
+            <Dropdown color="info" label="EXPORT" dismissOnClick={false}>
+              <Dropdown.Item>
+                <a href={`http://localhost:8080/${linkExportThis}`}>This Sheet</a>
+              </Dropdown.Item>
+              <Dropdown.Item>
+                <a onClick={exportAll}>All Sheets</a> {/* Panggil fungsi exportAll */}
+              </Dropdown.Item>
+            </Dropdown>
+          )}
+          {linkUpdateThis && (
+            <Dropdown color="warning" label="UPDATE" dismissOnClick={false}>
+              <Dropdown.Item>
+                <a onClick={UpdateThis}>This Sheet</a>
+              </Dropdown.Item>
+              <Dropdown.Item>
+                <a onClick={UpdateAll}>All Sheet</a>
+              </Dropdown.Item>
+            </Dropdown>
+          )}
         </Dropdown.Item>
-        <Dropdown.Item className="flex flex-col gap-2">
-          <FileInput onChange={handleFileChange} />
-          <Button onClick={handleImport} color="success" className="w-full">
-            Import
-          </Button>
-        </Dropdown.Item>
+        {importExcel && (
+          <Dropdown.Item className="flex flex-col gap-2">
+            <FileInput onChange={handleFileChange} />
+            <Button onClick={handleImport} color="success" className="w-full">
+              Import
+            </Button>
+          </Dropdown.Item>
+        )}
       </Dropdown>
     </div>
   );

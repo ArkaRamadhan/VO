@@ -18,9 +18,6 @@ export const ReusableTable = ({
   update,
   remove,
   excel,
-  ExportExcel,
-  UpdateExcel,
-  ImportExcel,
   formConfig,
   setFormConfig,
   InfoColumn,
@@ -288,6 +285,12 @@ export const ReusableTable = ({
       };
     });
 
+  const handleShowClick = (id) => {
+    if (OnShow) {
+      OnShow(id);
+    }
+  };
+
   const columns = [
     ...(KodePj
       ? [
@@ -385,6 +388,14 @@ export const ReusableTable = ({
           </Button>
           <Button
             className="w-full"
+            onClick={() => handleShowClick(data.ID)} // Pastikan ID benar
+            action="show"
+            color="info"
+          >
+            <TbEyeSearch />
+          </Button>
+          <Button
+            className="w-full"
             onClick={() => handleDelete(data.ID)}
             color="failure"
           >
@@ -414,18 +425,6 @@ export const ReusableTable = ({
               color="info"
             >
               <FaUpload />
-            </Button>
-          )}
-          {OnShow && (
-            <Button
-              className="w-full"
-              onClick={() => {
-                setSelectedId(data.ID);
-                setIsModalOpen(true);
-              }}
-              color="sucess"
-            >
-              <TbEyeSearch />
             </Button>
           )}
         </div>
@@ -473,9 +472,9 @@ export const ReusableTable = ({
               </Button>
               {excel && (
                 <Excel
-                  linkExportThis={ExportExcel}
-                  linkUpdateThis={UpdateExcel}
-                  importExcel={ImportExcel}
+                  linkExportThis={excel.exportThis}
+                  linkUpdateThis={excel.updateThis}
+                  importExcel={excel.import}
                 />
               )}
               <Button

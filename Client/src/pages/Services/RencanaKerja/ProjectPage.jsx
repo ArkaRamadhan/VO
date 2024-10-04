@@ -7,8 +7,11 @@ import {
   addProject,
   updateProject,
   deleteProject,
+  getProjectShow,
 } from "../../../../API/RencanaKerja/Project.service";
 import { useToken } from "../../../context/TokenContext";
+import { Modal, Button } from "flowbite-react"; // Import Modal dan Button dari flowbite-react
+import { FormatDate } from "../../../Utilities/FormatDate";
 
 export function ProjectPage() {
   const [formConfig, setFormConfig] = useState({
@@ -95,6 +98,19 @@ export function ProjectPage() {
     userRole = decoded.role;
   }
 
+  const [isShowModalOpen, setIsShowModalOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(null);
+
+  const handleShow = async (id) => {
+    try {
+      const project = await getProjectShow(id)
+      setSelectedProject(project);
+      setIsShowModalOpen(true);
+    } catch (error) {
+      console.error("Error fetching Project:", error);
+    }
+  };
+
   return (
     <App services={formConfig.services}>
       <div className="overflow-auto">
@@ -106,10 +122,11 @@ export function ProjectPage() {
           set={addProject}
           update={updateProject}
           remove={deleteProject}
-          excel
-          ExportExcel="exportProject"
-          UpdateExcel="updateProject"
-          ImportExcel="uploadProject"
+          excel={{
+            exportThis: "exportProject",
+            updateThis: "updateProject",
+            import  : "uploadProject",
+          }}  
           InfoColumn={true}
           KodePj={true}
           UploadArsip={{
@@ -118,9 +135,56 @@ export function ProjectPage() {
             download: "downloadProject",
             delete: "deleteProject",
           }}
+          OnShow={handleShow}
         />
         {/* End Table */}
       </div>
+
+      {/* Modal */}
+      <Modal show={isShowModalOpen} onClose={() => setIsShowModalOpen(false)}>
+        <Modal.Header>Detail Project</Modal.Header>
+        <Modal.Body>
+          {selectedProject && (
+            <div className="grid grid-cols-2 gap-4">
+              <p className="font-semibold">Kode Project :</p>
+              <p>{selectedProject.kode_project}</p>
+              <p className="font-semibold">Jenis Pengadaan:</p>
+              <p>{selectedProject.jenis_pengadaan}</p>
+              <p className="font-semibold">Nama Pengadaan:</p>
+              <p>{selectedProject.nama_pengadaan}</p>
+              <p className="font-semibold">Div Inisisasi:</p>
+              <p>{selectedProject.div_inisiasi}</p>
+              <p className="font-semibold">Bulan:</p>
+              <p>
+                {selectedProject.bulan 
+                  ? FormatDate(new Date(selectedProject.bulan)) 
+                  : "N/A"}
+              </p>
+              <p className="font-semibold">Sumber Pendanaan:</p>
+              <p>{selectedProject.sumber_pendanaan}</p>
+              <p className="font-semibold">Anggaran:</p>
+              <p>{selectedProject.anggaran}</p>
+              <p className="font-semibold">No Izin Prinsip:</p>
+              <p>{selectedProject.no_izin}</p>
+              <p className="font-semibold">Tanggal Izin:</p>
+              <p>
+                {selectedProject.tanggal_izin 
+                  ? FormatDate(new Date(selectedProject.tanggal_izin)) 
+                  : "N/A"}
+              </p>
+              <p className="font-semibold">Tanggal Tor:</p>
+              <p>
+                {selectedProject.tanggal_tor 
+                  ? FormatDate(new Date(selectedProject.tanggal_tor)) 
+                  : "N/A"}
+              </p>
+              <p className="font-semibold">PIC:</p>
+              <p>{selectedProject.pic}</p>
+            </div>
+          )}
+        </Modal.Body> 
+      </Modal>
+      {/* End Modal */}
     </App>
   );
 }

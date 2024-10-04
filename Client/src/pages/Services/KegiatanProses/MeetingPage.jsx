@@ -7,13 +7,16 @@ import {
   deleteMeeting,
   getMeetings,
   updateMeeting,
+  getMeetingShow,
 } from "../../../../API/KegiatanProses/Meeting.service";
 import { useToken } from "../../../context/TokenContext";
+import { Modal, Button } from "flowbite-react"; // Import Modal dan Button dari flowbite-react
+import { FormatDate } from "../../../Utilities/FormatDate";
 
 export function MeetingPage() {
   const [formConfig, setFormConfig] = useState({
     fields: [
-      {
+      { 
         name: "task",
         label: "Task",
         type: "text",
@@ -41,6 +44,19 @@ export function MeetingPage() {
     userRole = decoded.role;
   }
 
+  const [isShowModalOpen, setIsShowModalOpen] = useState(false);
+  const [selectedMeeting, setSelectedMeeting] = useState(null);
+
+  const handleShow = async (id) => {
+    try {
+      const meeting = await getMeetingShow(id)
+      setSelectedMeeting(meeting);
+      setIsShowModalOpen(true);
+    } catch (error) {
+      console.error("Error fetching Meeting:", error);
+    }
+  };
+  
   return (
     <App services={formConfig.services}>
       <div className="overflow-auto">
@@ -52,12 +68,14 @@ export function MeetingPage() {
           set={addMeeting}
           update={updateMeeting}
           remove={deleteMeeting}
-          excel
-          ExportExcel="exportMemo"
-          UpdateExcel="updateMemo"
-          ImportExcel="uploadMemo"
+          excel={{
+            exportThis: "exportMeeting",
+            updateThis: "updateMeeting",
+            import: "uploadMeeting",
+          }}
           InfoColumn={true}
           StatusColumn={true}
+          OnShow={handleShow}
           UploadArsip={{
             get: "filesMeeting",
             upload: "uploadFileMeeting",
@@ -67,6 +85,32 @@ export function MeetingPage() {
         />
         {/* End Table */}
       </div>
+
+      <Modal show={isShowModalOpen} onClose={() => setIsShowModalOpen(false)}>
+        <Modal.Header>
+          Meeting Detail
+        </Modal.Header>
+        <Modal.Body>
+          {selectedMeeting && (
+            <div className="grid grid-cols-2 gap-4">
+              <p className="font-semibold">Task :</p>
+              <p>{selectedMeeting.task}</p>
+              <p className="font-semibold">Tindak Lanjut :</p>
+              <p>{selectedMeeting.tindak_lanjut}</p>
+              <p className="font-semibold">Status :</p>
+              <p>{selectedMeeting.status}</p>
+              <p className="font-semibold">Update Pengerjaan :</p>
+              <p>{selectedMeeting.update_pengerjaan}</p>
+              <p className="font-semibold">Pic :</p>
+              <p>{selectedMeeting.pic}</p>
+              <p className="font-semibold">Tanggal Target :</p>
+              <p>{FormatDate(selectedMeeting.tanggal_target)}</p>
+              <p className="font-semibold">Tanggal Actual :</p>
+              <p>{FormatDate(selectedMeeting.tanggal_actual)}</p>
+            </div>
+          )}
+        </Modal.Body>
+      </Modal>
     </App>
   );
 }

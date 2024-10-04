@@ -37,6 +37,17 @@ export function updateMemo(id, data) {
     });
 }
 
+export function getMemoShow(id) {
+  return axios
+    .get(`${API_URL}/${id}`)
+    .then((response) => {
+      return response.data.memo;
+    })
+    .catch((error) => {
+      throw new Error(`Gagal mengambil data. Alasan: ${error.message}`);
+    });
+}
+
 export function deleteMemo(id) {
   return axios
     .delete(`${API_URL}/${id}`)

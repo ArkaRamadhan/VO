@@ -18,7 +18,7 @@ export function addSk(data) {
   return axios
     .post(`${API_URL}`, { ...rest }) // Tambahkan info
     .then((response) => {
-      return response.data.sK;
+      return response.data.sk;
     })
     .catch((error) => {
       throw new Error(`Gagal menambahkan data. Alasan: ${error.message}`);
@@ -30,18 +30,28 @@ export function updateSk(id, data) {
   return axios
     .put(`${API_URL}/${id}`, { ...rest }) // Kirim username sebagai bagian dari request
     .then((response) => {
-      return response.data.sK;
+      return response.data.sk;
     })
     .catch((error) => {
       throw new Error(`Gagal mengubah data. Alasan: ${error.message}`);
     });
 }
 
+export function getSkShow(id) {
+  return axios
+    .get(`${API_URL}/${id}`)
+    .then((response) => {
+      return response.data.sk;
+    })
+    .catch((error) => {
+      throw new Error(`Gagal mengambil data. Alasan: ${error.message}`);
+    });
+}
 export function deleteSk(id) {
   return axios
     .delete(`${API_URL}/${id}`)
     .then((response) => {
-      return response.data.sK;
+      return response.data;
     })
     .catch((error) => {
       throw new Error(`Gagal menghapus data. Alasan: ${error.message}`);

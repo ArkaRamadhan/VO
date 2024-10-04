@@ -374,7 +374,40 @@ func CreateExcelSuratKeluar(c *gin.Context) {
 			f.SetCellValue(sheetName, "D1", "Pic")
 			f.SetCellValue(sheetName, "E1", "Date Issue")
 
-			f.SetColWidth(sheetName, "A", "E", 20)
+			styleHeader, err := f.NewStyle(&excelize.Style{
+				Fill: excelize.Fill{
+					Type:    "pattern",
+					Color:   []string{"#4F81BD"},
+					Pattern: 1,
+				},
+				Font: &excelize.Font{
+					Bold:   true,
+					Size:   12,
+					Color:  "FFFFFF",
+				},
+				Border: []excelize.Border{
+					{Type: "left", Color: "000000", Style: 1},
+					{Type: "top", Color: "000000", Style: 1},
+					{Type: "bottom", Color: "000000", Style: 1},
+					{Type: "right", Color: "000000", Style: 1},
+				},
+				Alignment: &excelize.Alignment{
+					Horizontal: "center",
+					Vertical:   "center",
+				},
+			})
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			f.SetCellStyle(sheetName, "A1", "E1", styleHeader)
+
+			f.SetColWidth(sheetName, "A", "A", 27)
+			f.SetColWidth(sheetName, "B", "B", 40)
+			f.SetColWidth(sheetName, "C", "C", 20)
+			f.SetColWidth(sheetName, "D", "D", 20)
+			f.SetColWidth(sheetName, "E", "E", 20)
+			f.SetRowHeight(sheetName, 1, 20)
 		} else {
 			f.NewSheet(sheetName)
 		}
@@ -387,13 +420,27 @@ func CreateExcelSuratKeluar(c *gin.Context) {
 	// Write initial data to the "SAG" sheet
 	surat_keluarSheetName := "SURAT KELUAR"
 	for i, surat_keluar := range surat_keluars {
-		tanggalString := surat_keluar.Tanggal.Format("2006-01-02")
+		tanggalString := surat_keluar.Tanggal.Format("2 January 2006")
 		rowNum := i + 2 // Start from the second row (first row is header)
-		f.SetCellValue(surat_keluarSheetName, fmt.Sprintf("A%d", rowNum), surat_keluar.NoSurat)
-		f.SetCellValue(surat_keluarSheetName, fmt.Sprintf("B%d", rowNum), surat_keluar.Title)
-		f.SetCellValue(surat_keluarSheetName, fmt.Sprintf("C%d", rowNum), surat_keluar.From)
-		f.SetCellValue(surat_keluarSheetName, fmt.Sprintf("D%d", rowNum), surat_keluar.Pic)
+		f.SetCellValue(surat_keluarSheetName, fmt.Sprintf("A%d", rowNum), *surat_keluar.NoSurat)
+		f.SetCellValue(surat_keluarSheetName, fmt.Sprintf("B%d", rowNum), *surat_keluar.Title)
+		f.SetCellValue(surat_keluarSheetName, fmt.Sprintf("C%d", rowNum), *surat_keluar.From)
+		f.SetCellValue(surat_keluarSheetName, fmt.Sprintf("D%d", rowNum), *surat_keluar.Pic)
 		f.SetCellValue(surat_keluarSheetName, fmt.Sprintf("E%d", rowNum), tanggalString)
+
+		styleData, err := f.NewStyle(&excelize.Style{
+			Border: []excelize.Border{
+				{Type: "left", Color: "000000", Style: 1},
+				{Type: "top", Color: "000000", Style: 1},
+				{Type: "bottom", Color: "000000", Style: 1},
+				{Type: "right", Color: "000000", Style: 1},
+			},
+		})
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		f.SetCellStyle(surat_keluarSheetName, fmt.Sprintf("A%d", rowNum), fmt.Sprintf("E%d", rowNum), styleData)
 	}
 
 	// Delete the default "Sheet1" sheet
@@ -520,6 +567,8 @@ func ImportExcelSuratKeluar(c *gin.Context) {
 		return
 	}
 
+	log.Println("Processing rows...") // Log untuk memulai proses baris
+
 	// Definisikan semua format tanggal yang mungkin
 	dateFormats := []string{
 		"2 January 2006",
@@ -532,10 +581,11 @@ func ImportExcelSuratKeluar(c *gin.Context) {
 
 	// Loop melalui baris dan simpan ke database
 	for i, row := range rows {
-		if i < 5 { // Lewati baris pertama yang merupakan header
+		if i == 0 { // Lewati baris pertama yang merupakan header
 			continue
 		}
 		if len(row) < 5 { // Pastikan ada cukup kolom
+			log.Printf("Row %d skipped: less than 5 columns filled", i+1)
 			continue
 		}
 		noSurat := row[0]
@@ -560,6 +610,12 @@ func ImportExcelSuratKeluar(c *gin.Context) {
 			}
 		}
 
+		if parseErr != nil {
+			log.Printf("Format tanggal tidak valid di baris %d: %v", i+1, parseErr)
+			continue // Lewati baris ini jika format tanggal tidak valid
+		}
+
+		// Buat instance baru dari models.SuratKeluar untuk setiap iterasi loop
 		surat_keluar := models.SuratKeluar{
 			NoSurat:  &noSurat,
 			Title:    &title,
@@ -577,5 +633,5 @@ func ImportExcelSuratKeluar(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Data imported successfully."})
+	c.JSON(http.StatusOK, gin.H{"message": "Data berhasil diimpor."})
 }

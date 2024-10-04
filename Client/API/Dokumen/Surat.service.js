@@ -37,6 +37,17 @@ export function updateSurat(id, data) {
     });
 }
 
+export function getSuratShow(id) {
+  return axios
+    .get(`${API_URL}/${id}`)
+    .then((response) => {
+      return response.data.surat;
+    })
+    .catch((error) => {
+      throw new Error(`Gagal mengambil data. Alasan: ${error.message}`);
+    });
+}
+
 export function deleteSurat(id) {
   return axios
     .delete(`${API_URL}/${id}`)

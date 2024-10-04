@@ -20,6 +20,9 @@ export const TimelineDesktopPage = () => {
         getResources={getResources}
         insertResource={addResource}
         removeResource={deleteResource}
+        excel={{
+          exportThis: "exportTimelineDesktop",
+        }}
       />
     </App>
   );
