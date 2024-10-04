@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import App from "../../../components/Layouts/App";
 import { ReusableTable } from "../../../components/Fragments/Services/ReusableTable";
 import { jwtDecode } from "jwt-decode";
@@ -13,7 +13,7 @@ import { useToken } from "../../../context/TokenContext";
 export function PerdinPage() {
   const [formConfig, setFormConfig] = useState({
     fields: [
-      { name: "no_perdin", label: "No Perdin", type: "select", options: ["PD-ITS"],required: false },
+      { name: "no_perdin", label: "No Perdin", type: "text", required: false },
       {
         name: "tanggal",
         label: "Tanggal Pengajuan",
@@ -25,17 +25,32 @@ export function PerdinPage() {
     ],
     services: "Perjalanan Dinas",
   });
-  const { token } = useToken(); // Ambil token dari context
+
+  const { token } = useToken();
   let userRole = "";
   if (token) {
     const decoded = jwtDecode(token);
     userRole = decoded.role;
   }
 
+  const [defaultValues, setDefaultValues] = useState({
+    no_perdin: "PD-ITS",
+    tanggal: "",
+    hotel: "",
+    transport: "",
+  });
+
+  useEffect(() => {
+    // Set default values in the formConfig
+    setFormConfig((prevConfig) => ({
+      ...prevConfig,
+      defaultValues,
+    }));
+  }, []); // Hanya panggil saat komponen di-mount
+
   return (
     <App services={formConfig.services}>
       <div className="overflow-auto">
-        {/* Tabel */}
         <ReusableTable
           formConfig={formConfig}
           setFormConfig={setFormConfig}
@@ -55,7 +70,6 @@ export function PerdinPage() {
             delete: "deletePerdin",
           }}
         />
-        {/* End Tabel */}
       </div>
     </App>
   );
