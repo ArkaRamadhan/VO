@@ -278,7 +278,7 @@ func SuratKeluarUpdate(c *gin.Context) {
 		surat_keluar.Pic = surat_keluar.Pic // gunakan nilai yang ada dari database
 	}
 
-	if requestBody.CreateBy != "" {
+		if requestBody.CreateBy != "" {
 		surat_keluar.CreateBy = requestBody.CreateBy
 	} else {
 		surat_keluar.CreateBy = surat_keluar.CreateBy // gunakan nilai yang ada dari database
@@ -351,9 +351,9 @@ func CreateExcelSuratKeluar(c *gin.Context) {
 					Pattern: 1,
 				},
 				Font: &excelize.Font{
-					Bold:  true,
-					Size:  12,
-					Color: "FFFFFF",
+					Bold:   true,
+					Size:   12,
+					Color:  "FFFFFF",
 				},
 				Border: []excelize.Border{
 					{Type: "left", Color: "000000", Style: 1},

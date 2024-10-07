@@ -174,6 +174,7 @@ func main() {
 	r.GET("/resourceProject", controllers.GetResourcesProject)
 	r.POST("/resourceProject", controllers.CreateResourceProject)
 	r.DELETE("/resourceProject/:id", controllers.DeleteResourceProject)
+	r.GET("/exportTimelineProject", controllers.ExportTimelineProjectToExcel)
 
 	//Timeline Desktop routes
 	r.GET("/timelineDesktop", controllers.GetEventsDesktop)

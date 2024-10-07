@@ -12,9 +12,8 @@ import "../../../../calendar.css";
 import dayjs from "dayjs";
 import moment from "moment";
 import Swal from "sweetalert2";
-import { Excel } from "../../../../Utilities/Excel";
 import { ColorPick } from "../../../../Utilities/ColorPick";
-
+import { Excel } from "../../../../Utilities/Excel";
 
 const initialState = {
   showScheduler: false,
@@ -39,7 +38,7 @@ function Timeline({
   getResources,
   insertResource,
   removeResource,
-  excel,
+  excel
 }) {
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [formData, setFormData] = useState({});
@@ -82,9 +81,10 @@ function Timeline({
     // schedulerData.localeDayjs.locale("en");
     //
     moment.locale("id", {
-      months: "Januari_Februari_Maret_April_Mei_Juni_Juli_Agustus_September_Oktober_November_Desember".split(
-        "_"
-      ),
+      months:
+        "Januari_Februari_Maret_April_Mei_Juni_Juli_Agustus_September_Oktober_November_Desember".split(
+          "_"
+        ),
       monthsShort: "Jan_Feb_Mar_Apr_Mei_Jun_Jul_Agu_Sep_Okt_Nov_Des".split("_"),
       monthsParseExact: true,
       weekdays: "Minggu_Senin_Selasa_Rabu_Kamis_Jumat_Sabtu".split("_"),
@@ -427,13 +427,11 @@ function Timeline({
           Tambah Resource
         </Button>
       </span>
-      {excel && (
-        <Excel
-          linkExportThis={excel.exportThis}
-          linkUpdateThis={excel.updateThis}
-          importExcel={excel.import}
-        />
-      )}
+      {excel && <Excel
+        linkExportThis={excel.exportThis}
+        linkUpdateThis={excel.updateThis}
+        importExcel={excel.import}
+      />}
     </div>
   );
 

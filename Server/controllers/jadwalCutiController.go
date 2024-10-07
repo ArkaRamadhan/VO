@@ -84,7 +84,7 @@ func ExportJadwalCutiToExcel(c *gin.Context) {
 	}
 
 	f := excelize.NewFile()
-	sheet := "Calendar 2024"
+	sheet := "JADWAL CUTI"
 	f.NewSheet(sheet)
 
 	months := []string{
@@ -115,7 +115,7 @@ func ExportJadwalCutiToExcel(c *gin.Context) {
 	}
 
 	// Set header untuk download file
-	c.Header("Content-Disposition", "attachment; filename=Calendar2024.xlsx")
+	c.Header("Content-Disposition", "attachment; filename=JadwalCuti.xlsx")
 	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 	c.Header("Content-Length", strconv.Itoa(len(buffer.Bytes())))
 	c.Writer.Write(buffer.Bytes())
@@ -154,12 +154,32 @@ func setMonthDataCuti(f *excelize.File, sheet, month string, rowOffset, colOffse
 
 			// Cek apakah ada event pada hari ini
 			for _, event := range events {
-				startDate, _ := time.Parse("2006-01-02", event.Start)
-				endDate, _ := time.Parse("2006-01-02", event.End)
+				var startDate, endDate time.Time
+				if event.AllDay {
+					startDate, _ = time.Parse("2006-01-02", event.Start[:10])
+					endDate, _ = time.Parse("2006-01-02", event.End[:10])
+				} else {
+					startDate, _ = time.Parse(time.RFC3339, event.Start)
+					endDate, _ = time.Parse(time.RFC3339, event.End)
+				}
 				currentDate := time.Date(monthTime.Year(), monthTime.Month(), day, 0, 0, 0, 0, time.UTC)
 
 				if (currentDate.Equal(startDate) || currentDate.After(startDate)) && currentDate.Before(endDate.AddDate(0, 0, 1)) {
-					eventDetails[d] = event.Title // Place event title in the same column as the date
+					var eventDetail string
+					if event.AllDay {
+						eventDetail = fmt.Sprintf("%s\n(AllDay)", event.Title)
+					} else {
+						startTime := startDate.Format("15:04")
+						endTime := endDate.Format("15:04")
+						eventDetail = fmt.Sprintf("%s\n(%s-%s)", event.Title, startTime, endTime)
+					}
+
+					// Gabungkan detail acara jika sudah ada
+					if eventDetails[d] != nil {
+						eventDetails[d] = fmt.Sprintf("%s,\n%s", eventDetails[d], eventDetail)
+					} else {
+						eventDetails[d] = eventDetail
+					}
 				}
 			}
 
@@ -254,6 +274,8 @@ func setMonthDataCuti(f *excelize.File, sheet, month string, rowOffset, colOffse
 	// define cell border for the blank cell in the date range
 	if blankStyle, err = f.NewStyle(&excelize.Style{
 		Border: []excelize.Border{left, right, bottom},
+		Font:   &excelize.Font{Size: 9},
+		Alignment: &excelize.Alignment{WrapText: true},
 	}); err != nil {
 		fmt.Println(err)
 		return
@@ -269,6 +291,8 @@ func setMonthDataCuti(f *excelize.File, sheet, month string, rowOffset, colOffse
 	// define the border and fill style for the blank cell in previous and next month
 	if grayBlankStyle, err = f.NewStyle(&excelize.Style{
 		Border: []excelize.Border{left, right, bottom},
+		Font:   &excelize.Font{Size: 9},
+		Alignment: &excelize.Alignment{WrapText: true},
 		Fill:   fill}); err != nil {
 		fmt.Println(err)
 		return

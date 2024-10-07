@@ -33,7 +33,7 @@ type Memo struct {
 	NoMemo    *string    `json:"no_memo"`
 	Perihal   *string    `json:"perihal"`
 	Pic       *string    `json:"pic"`
-	Type      string     `json:"type"`
+	Type      string    `json:"type"`
 	CreateBy  string     `json:"create_by"`
 }
 

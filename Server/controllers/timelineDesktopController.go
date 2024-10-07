@@ -335,6 +335,8 @@ func setMonthDataDesktop(f *excelize.File, sheet, month string, rowOffset, colOf
 	// define cell border for the blank cell in the date range
 	if blankStyle, err = f.NewStyle(&excelize.Style{
 		Border: []excelize.Border{left, right, bottom},
+		Font:   &excelize.Font{Size: 9},
+		Alignment: &excelize.Alignment{WrapText: true},
 	}); err != nil {
 		fmt.Println(err)
 		return
@@ -350,6 +352,8 @@ func setMonthDataDesktop(f *excelize.File, sheet, month string, rowOffset, colOf
 	// define the border and fill style for the blank cell in previous and next month
 	if grayBlankStyle, err = f.NewStyle(&excelize.Style{
 		Border: []excelize.Border{left, right, bottom},
+		Font:   &excelize.Font{Size: 9},
+		Alignment: &excelize.Alignment{WrapText: true},
 		Fill:   fill}); err != nil {
 		fmt.Println(err)
 		return

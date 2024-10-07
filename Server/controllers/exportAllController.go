@@ -31,7 +31,7 @@ func ExportAllSheets(c *gin.Context) {
 	f := excelize.NewFile()
 
 	// Define sheet names
-	sheetNames := []string{"MEMO", "BERITA ACARA", "SK", "SURAT", "PROJECT", "PERDIN", "SURAT MASUK", "SURAT KELUAR", "ARSIP", "MEETING", "MEETING SCHEDULE"}
+	sheetNames := []string{"MEMO", "BERITA ACARA", "SK", "SURAT", "PROJECT", "PERDIN", "SURAT MASUK", "SURAT KELUAR", "ARSIP", "MEETING", "MEETING SCHEDULE", "JADWAL CUTI", "JADWAL RAPAT", "BOOKING RAPAT", "TIMELINE DESKTOP", "TIMELINE PROJECT"}
 
 	// Create all sheets
 	for _, sheetName := range sheetNames {
@@ -50,6 +50,11 @@ func ExportAllSheets(c *gin.Context) {
 	var meetingLists []models.MeetingSchedule
 	var meetings []models.Meeting
 	var arsips []models.Arsip
+	var jadwalCutis []models.JadwalCuti
+	var jadwalRapats []models.JadwalRapat
+	var bookingRapats []models.BookingRapat
+	var timelineDesktops []models.TimelineDesktop
+	var timelineProjects []models.TimelineProject
 
 	initializers.DB.Find(&memos)
 	initializers.DB.Find(&beritaAcaras)
@@ -62,6 +67,11 @@ func ExportAllSheets(c *gin.Context) {
 	initializers.DB.Find(&meetingLists)
 	initializers.DB.Find(&meetings)
 	initializers.DB.Find(&arsips)
+	initializers.DB.Find(&jadwalCutis)
+	initializers.DB.Find(&jadwalRapats)
+	initializers.DB.Find(&bookingRapats)
+	initializers.DB.Find(&timelineDesktops)
+	initializers.DB.Find(&timelineProjects)
 
 	// Update data in each sheet
 	for _, sheetName := range sheetNames {
@@ -299,6 +309,158 @@ func ExportAllSheets(c *gin.Context) {
 			f.SetCellValue(sheetName, "G1", "Tanggal Dokumen")
 			f.SetCellValue(sheetName, "H1", "Tanggal Penyerahan")
 			f.SetColWidth(sheetName, "A", "Z", 20)
+		case "JADWAL CUTI":
+			// Ambil data dari model JadwalCuti
+			var events []models.JadwalCuti
+			if err := initializers.DB.Find(&events).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			sheet := "JADWAL CUTI"
+			months := []string{
+				"January 2024", "February 2024", "March 2024", "April 2024",
+				"May 2024", "June 2024", "July 2024", "August 2024",
+				"September 2024", "October 2024", "November 2024", "December 2024",
+			}
+
+			rowOffset := 0
+			colOffset := 0
+			for i, month := range months {
+				setMonthDataCuti(f, sheet, month, rowOffset, colOffset, events)
+				colOffset += 9 // Sesuaikan offset untuk bulan berikutnya dalam baris yang sama
+				if (i+1)%3 == 0 {
+					rowOffset += 18 // Pindah ke baris berikutnya setiap 3 bulan
+					colOffset = 0
+				}
+			}
+		case "JADWAL RAPAT":
+
+			// Ambil data dari model JadwalRapat
+			var events_rapat []models.JadwalRapat
+			if err := initializers.DB.Find(&events_rapat).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			sheet := "JADWAL RAPAT"
+			months := []string{
+				"January 2024", "February 2024", "March 2024", "April 2024",
+				"May 2024", "June 2024", "July 2024", "August 2024",
+				"September 2024", "October 2024", "November 2024", "December 2024",
+			}
+
+			rowOffset := 0
+			colOffset := 0
+			for i, month := range months {
+				setMonthDataRapat(f, sheet, month, rowOffset, colOffset, events_rapat)
+				colOffset += 9 // Sesuaikan offset untuk bulan berikutnya dalam baris yang sama
+				if (i+1)%3 == 0 {
+					rowOffset += 18 // Pindah ke baris berikutnya setiap 3 bulan
+					colOffset = 0
+				}
+			}
+		case "BOOKING RAPAT":
+			// Ambil data dari model BookingRapat
+			var events_rapat []models.BookingRapat
+			if err := initializers.DB.Find(&events_rapat).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			sheet := "BOOKING RAPAT"
+			months := []string{
+				"January 2024", "February 2024", "March 2024", "April 2024",
+				"May 2024", "June 2024", "July 2024", "August 2024",
+				"September 2024", "October 2024", "November 2024", "December 2024",
+			}
+
+			rowOffset := 0
+			colOffset := 0
+			for i, month := range months {
+				setMonthDataBookingRapat(f, sheet, month, rowOffset, colOffset, events_rapat)
+				colOffset += 9 // Sesuaikan offset untuk bulan berikutnya dalam baris yang sama
+				if (i+1)%3 == 0 {
+					rowOffset += 18 // Pindah ke baris berikutnya setiap 3 bulan
+					colOffset = 0
+				}
+			}
+		case "TIMELINE DESKTOP":
+			// Ambil data dari model TimelineDesktop
+			var events_timeline []models.TimelineDesktop
+			if err := initializers.DB.Find(&events_timeline).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			// Ambil data resources untuk digunakan dalam setMonthDataProject
+			var resources []models.ResourceDesktop
+			if err := initializers.DB.Find(&resources).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			resourceMap := make(map[uint]string)
+			for _, resource := range resources {
+				resourceMap[resource.ID] = resource.Name
+			}
+
+			sheet := "TIMELINE DESKTOP"
+			months := []string{
+				"January 2024", "February 2024", "March 2024", "April 2024",
+				"May 2024", "June 2024", "July 2024", "August 2024",
+				"September 2024", "October 2024", "November 2024", "December 2024",
+			}
+
+			rowOffset := 0
+			colOffset := 0
+			for i, month := range months {
+				setMonthDataDesktop(f, sheet, month, rowOffset, colOffset, events_timeline, resourceMap)
+				colOffset += 9 // Sesuaikan offset untuk bulan berikutnya dalam baris yang sama
+				if (i+1)%3 == 0 {
+					rowOffset += 18 // Pindah ke baris berikutnya setiap 3 bulan
+					colOffset = 0
+				}
+			}
+
+		case "TIMELINE PROJECT":
+			// Ambil data dari model JadwalCuti
+			var events_timeline []models.TimelineProject
+			if err := initializers.DB.Find(&events_timeline).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			// Ambil data resources untuk digunakan dalam setMonthDataProject
+			var resources []models.ResourceProject
+			if err := initializers.DB.Find(&resources).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			resourceMap := make(map[uint]string)
+			for _, resource := range resources {
+				resourceMap[resource.ID] = resource.Name
+			}
+
+			sheet := "TIMELINE PROJECT"
+			months := []string{
+				"January 2024", "February 2024", "March 2024", "April 2024",
+				"May 2024", "June 2024", "July 2024", "August 2024",
+				"September 2024", "October 2024", "November 2024", "December 2024",
+			}
+
+			rowOffset := 0
+			colOffset := 0
+			for i, month := range months {
+				setMonthDataProject(f, sheet, month, rowOffset, colOffset, events_timeline, resourceMap)
+				colOffset += 9 // Sesuaikan offset untuk bulan berikutnya dalam baris yang sama
+				if (i+1)%3 == 0 {
+					rowOffset += 18 // Pindah ke baris berikutnya setiap 3 bulan
+					colOffset = 0
+				}
+			}
+
 		}
 
 		// Write data rows
@@ -1222,7 +1384,8 @@ func ExportAllSheets(c *gin.Context) {
 
 	// Delete the default "Sheet1" sheet
 	if err := f.DeleteSheet("Sheet1"); err != nil {
-		panic(err) // Handle error jika bukan error "sheet tidak ditemukan"
+		fmt.Println("Error deleting Sheet1:", err) // Tambahkan log error
+		// Handle error jika bukan error "sheet tidak ditemukan"
 	}
 
 	buf, err := f.WriteToBuffer()
