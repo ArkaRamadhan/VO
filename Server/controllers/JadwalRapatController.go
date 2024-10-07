@@ -154,14 +154,32 @@ func setMonthDataRapat(f *excelize.File, sheet, month string, rowOffset, colOffs
 
 			// Cek apakah ada event pada hari ini
 			for _, event := range events_rapat {
-				startDate, _ := time.Parse(time.RFC3339, event.Start)
-				endDate, _ := time.Parse(time.RFC3339, event.End)
+				var startDate, endDate time.Time
+				if event.AllDay {
+					startDate, _ = time.Parse("2006-01-02", event.Start[:10])
+					endDate, _ = time.Parse("2006-01-02", event.End[:10])
+				} else {
+					startDate, _ = time.Parse(time.RFC3339, event.Start)
+					endDate, _ = time.Parse(time.RFC3339, event.End)
+				}
 				currentDate := time.Date(monthTime.Year(), monthTime.Month(), day, 0, 0, 0, 0, time.UTC)
 
 				if (currentDate.Equal(startDate) || currentDate.After(startDate)) && currentDate.Before(endDate.AddDate(0, 0, 1)) {
-					startTime := startDate.Format("15:04")
-					endTime := endDate.Format("15:04")
-					eventDetails[d] = fmt.Sprintf("%s\n%s - %s", event.Title, startTime, endTime)
+					var eventDetail string
+					if event.AllDay {
+						eventDetail = fmt.Sprintf("%s\nAllDay", event.Title)
+					} else {
+						startTime := startDate.Format("15:04")
+						endTime := endDate.Format("15:04")
+						eventDetail = fmt.Sprintf("%s\n%s - %s", event.Title, startTime, endTime)
+					}
+
+					// Gabungkan detail acara jika sudah ada
+					if eventDetails[d] != nil {
+						eventDetails[d] = fmt.Sprintf("%s\n%s", eventDetails[d], eventDetail)
+					} else {
+						eventDetails[d] = eventDetail
+					}
 				}
 			}
 
@@ -169,6 +187,7 @@ func setMonthDataRapat(f *excelize.File, sheet, month string, rowOffset, colOffs
 		}
 		data[r] = week
 		data[r+1] = eventDetails
+
 		firstDay = 0 // Reset firstDay for subsequent weeks
 	}
 
@@ -256,6 +275,8 @@ func setMonthDataRapat(f *excelize.File, sheet, month string, rowOffset, colOffs
 	// define cell border for the blank cell in the date range
 	if blankStyle, err = f.NewStyle(&excelize.Style{
 		Border: []excelize.Border{left, right, bottom},
+		Font:   &excelize.Font{Size: 9},
+		Alignment: &excelize.Alignment{WrapText: true},
 	}); err != nil {
 		fmt.Println(err)
 		return
@@ -271,6 +292,8 @@ func setMonthDataRapat(f *excelize.File, sheet, month string, rowOffset, colOffs
 	// define the border and fill style for the blank cell in previous and next month
 	if grayBlankStyle, err = f.NewStyle(&excelize.Style{
 		Border: []excelize.Border{left, right, bottom},
+		Font:   &excelize.Font{Size: 9},
+		Alignment: &excelize.Alignment{WrapText: true},
 		Fill:   fill}); err != nil {
 		fmt.Println(err)
 		return

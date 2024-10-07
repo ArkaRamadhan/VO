@@ -174,6 +174,7 @@ func main() {
 	r.GET("/resourceProject", controllers.GetResourcesProject)
 	r.POST("/resourceProject", controllers.CreateResourceProject)
 	r.DELETE("/resourceProject/:id", controllers.DeleteResourceProject)
+	r.GET("/exportTimelineProject", controllers.ExportTimelineProjectToExcel)
 
 	//Timeline Desktop routes
 	r.GET("/timelineDesktop", controllers.GetEventsDesktop)
@@ -182,6 +183,7 @@ func main() {
 	r.GET("/resourceDesktop", controllers.GetResourcesDesktop)
 	r.POST("/resourceDesktop", controllers.CreateResourceDesktop)
 	r.DELETE("/resourceDesktop/:id", controllers.DeleteResourceDesktop)
+	r.GET("/exportTimelineDesktop", controllers.ExportTimelineDesktopToExcel)
 
 	//Booking Rapat routes
 	r.GET("/booking-rapat", controllers.GetEventsBookingRapat)

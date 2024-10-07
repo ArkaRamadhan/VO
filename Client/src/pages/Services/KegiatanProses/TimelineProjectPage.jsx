@@ -16,12 +16,12 @@ export const TimelineProjectPage = () => {
       <Timeline
         getEvents={getEventsProject}
         insertEvent={addEventProject}
-        removeEvent={deleteEventProject}
+        removeEvent={deleteEventProject}  
         getResources={getResources}
         insertResource={addResource}
         removeResource={deleteResource}
         excel={{
-          exportThis: "exportTimelineProject",
+          exportThis: "exportTimelineProject",  
         }}
       />
     </App>

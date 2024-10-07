@@ -13,6 +13,7 @@ import dayjs from "dayjs";
 import moment from "moment";
 import Swal from "sweetalert2";
 import { ColorPick } from "../../../../Utilities/ColorPick";
+import { Excel } from "../../../../Utilities/Excel";
 
 const initialState = {
   showScheduler: false,
@@ -37,6 +38,7 @@ function Timeline({
   getResources,
   insertResource,
   removeResource,
+  excel
 }) {
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [formData, setFormData] = useState({});
@@ -419,12 +421,17 @@ function Timeline({
   }
 
   const leftCustomHeader = (
-    <div>
+    <div className="flex gap-[.5rem]">
       <span style={{ fontWeight: "bold" }}>
         <Button className="ml-2" onClick={() => addResource(state.viewModel)}>
           Tambah Resource
         </Button>
       </span>
+      {excel && <Excel
+        linkExportThis={excel.exportThis}
+        linkUpdateThis={excel.updateThis}
+        importExcel={excel.import}
+      />}
     </div>
   );
 

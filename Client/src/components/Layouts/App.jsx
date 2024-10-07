@@ -132,7 +132,6 @@ const App = ({ services, children }) => {
           <SidebarItem href="/base-project" text="Base Project" />
         </SidebarCollapse>
         <SidebarCollapse text="Kegiatan" icon={<GrPlan />}>
-          <SidebarItem href="/timeline-project" text="Timeline Project" />
           <SidebarItem
             href="/timeline-desktop"
             text="Timeline Wallpaper Desktop"
@@ -141,6 +140,9 @@ const App = ({ services, children }) => {
           <SidebarItem href="/jadwal-rapat" text="Jadwal Rapat" />
           <SidebarItem href="/jadwal-cuti" text="Jadwal Cuti" />
           <SidebarItem href="/meeting" text="Meeting" />
+        </SidebarCollapse>
+        <SidebarCollapse text="Weekly Timeline" icon={<GrPlan />}>
+          <SidebarItem href="/timeline-project" text="Timeline Project" />
           <SidebarItem href="/meeting-schedule" text="Meeting Schedule" />
         </SidebarCollapse>
         <SidebarCollapse text="Informasi" icon={<SlEnvolopeLetter />}>
