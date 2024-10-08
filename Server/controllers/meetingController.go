@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"log"
@@ -11,11 +10,10 @@ import (
 	"path/filepath"
 	"project-its/initializers"
 	"project-its/models"
+	"strconv"
 	"time"
 
-	"github.com/Azure/azure-storage-blob-go/azblob"
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 	"github.com/xuri/excelize/v2"
 )
 
@@ -31,70 +29,44 @@ type MeetingRequest struct {
 	CreateBy         string  `json:"create_by"`
 }
 
-func init() {
-	err := godotenv.Load() // Memuat file .env
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-
-	accountNameMeeting = os.Getenv("ACCOUNT_NAME")                 // Mengambil nilai dari .env
-	accountKeyMeeting = os.Getenv("ACCOUNT_KEY")                   // Mengambil nilai dari .env
-	containerNameMeeting = os.Getenv("CONTAINER_NAME_MEETING") // Mengambil nilai dari .env
-}
-
-// Tambahkan variabel global untuk menyimpan kredensial
-var (
-	accountNameMeeting   string
-	accountKeyMeeting    string
-	containerNameMeeting string
-)
-
-func getBlobServiceClientMeeting() azblob.ServiceURL {
-	creds, err := azblob.NewSharedKeyCredential(accountNameMeeting, accountKeyMeeting)
-	if err != nil {
-		panic("Failed to create shared key credential: " + err.Error())
-	}
-
-	pipeline := azblob.NewPipeline(creds, azblob.PipelineOptions{})
-
-	// Build the URL for the Azure Blob Storage account
-	URL, err := url.Parse(fmt.Sprintf("https://%s.blob.core.windows.net/", accountNameMeeting))
-	if err != nil {
-		log.Fatal("Invalid URL format")
-	}
-
-	// Create a ServiceURL object that wraps the URL and the pipeline
-	serviceURL := azblob.NewServiceURL(*URL, pipeline)
-
-	return serviceURL
-}
-
 func UploadHandlerMeeting(c *gin.Context) {
-	id := c.PostForm("id") // Mendapatkan ID dari form data
+	id := c.PostForm("id")
 	file, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "File diperlukan"})
 		return
 	}
 
-	// Membuat path berdasarkan ID
-	filename := fmt.Sprintf("%s/%s", id, file.Filename)
-
-	// Membuka file
-	src, err := file.Open()
+	// Konversi id dari string ke uint
+	userID, err := strconv.ParseUint(id, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuka file"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID tidak valid"})
 		return
 	}
-	defer src.Close()
 
-	// Mengunggah file ke Azure Blob Storage
-	containerURL := getBlobServiceClient().NewContainerURL(containerNameMeeting)
-	blobURL := containerURL.NewBlockBlobURL(filename)
+	baseDir := "C:/UploadedFile/meeting"
+	dir := filepath.Join(baseDir, id)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		os.MkdirAll(dir, 0755)
+	}
 
-	_, err = azblob.UploadStreamToBlockBlob(context.TODO(), src, blobURL, azblob.UploadStreamToBlockBlobOptions{})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengunggah file"})
+	filePath := filepath.Join(dir, file.Filename)
+	if err := c.SaveUploadedFile(file, filePath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan file"})
+		return
+	}
+
+	// Menyimpan metadata file ke database
+	newFile := models.File{
+		UserID:      uint(userID), // Gunakan userID yang sudah dikonversi
+		FilePath:    filePath,
+		FileName:    file.Filename,
+		ContentType: file.Header.Get("Content-Type"),
+		Size:        file.Size,
+	}
+	result := initializers.DB.Create(&newFile)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan metadata file"})
 		return
 	}
 
@@ -102,86 +74,85 @@ func UploadHandlerMeeting(c *gin.Context) {
 }
 
 func GetFilesByIDMeeting(c *gin.Context) {
-	id := c.Param("id") // Mendapatkan ID dari URL
-
-	containerURL := getBlobServiceClient().NewContainerURL(containerNameMeeting)
-	prefix := fmt.Sprintf("%s/", id) // Prefix untuk daftar blob di folder tertentu (ID)
-
-	var files []string
-	for marker := (azblob.Marker{}); marker.NotDone(); {
-		listBlob, err := containerURL.ListBlobsFlatSegment(context.TODO(), marker, azblob.ListBlobsSegmentOptions{
-			Prefix: prefix, // Hanya daftar blob dengan prefix yang ditentukan (folder)
-		})
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat daftar file"})
-			return
-		}
-
-		for _, blobInfo := range listBlob.Segment.BlobItems {
-			files = append(files, blobInfo.Name)
-		}
-
-		marker = listBlob.NextMarker
-	}
-
-	c.JSON(http.StatusOK, gin.H{"files": files}) // Pastikan mengembalikan array files
-}
-
-// Fungsi untuk menghapus file dari Azure Blob Storage
-func DeleteFileHandlerMeeting(c *gin.Context) {
-	filename := c.Param("filename")
 	id := c.Param("id")
-	if filename == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Filename is required"})
+
+	var files []models.File
+	result := initializers.DB.Where("user_id = ?", id).Find(&files)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data file"})
 		return
 	}
 
-	// Membuat path lengkap berdasarkan ID dan nama file
-	fullPath := fmt.Sprintf("%s/%s", id, filename)
+	var fileNames []string
+	for _, file := range files {
+		fileNames = append(fileNames, file.FileName)
+	}
 
-	containerURL := getBlobServiceClient().NewContainerURL(containerNameMeeting)
-	blobURL := containerURL.NewBlockBlobURL(fullPath)
+	c.JSON(http.StatusOK, gin.H{"files": fileNames})
+}
 
-	// Menghapus blob
-	_, err := blobURL.Delete(context.TODO(), azblob.DeleteSnapshotsOptionNone, azblob.BlobAccessConditions{})
+func DeleteFileHandlerMeeting(c *gin.Context) {
+	encodedFilename := c.Param("filename")
+	filename, err := url.QueryUnescape(encodedFilename)
 	if err != nil {
-		log.Printf("Error deleting file: %v", err) // Log kesalahan
+		log.Printf("Error decoding filename: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid filename"})
+		return
+	}
+
+	id := c.Param("id")
+	log.Printf("Received ID: %s and Filename: %s", id, filename) // Tambahkan log ini
+
+	baseDir := "C:/UploadedFile/meeting"
+	fullPath := filepath.Join(baseDir, id, filename)
+
+	log.Printf("Attempting to delete file at path: %s", fullPath)
+
+	// Hapus file dari sistem file
+	err = os.Remove(fullPath)
+	if err != nil {
+		log.Printf("Error deleting file: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete file"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "File deleted successfully"}) // Pastikan ini ada
+	// Hapus metadata file dari database
+	result := initializers.DB.Where("file_path = ?", fullPath).Delete(&models.File{})
+	if result.Error != nil {
+		log.Printf("Error deleting file metadata: %v", result.Error)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete file metadata"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "File deleted successfully"})
 }
 
-// Fungsi untuk mendownload file dari Azure Blob Storage
 func DownloadFileHandlerMeeting(c *gin.Context) {
-	id := c.Param("id") // Mendapatkan ID dari URL
+	id := c.Param("id")
 	filename := c.Param("filename")
-	if filename == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Filename is required"})
+	baseDir := "C:/UploadedFile/meeting"
+	fullPath := filepath.Join(baseDir, id, filename)
+
+	log.Printf("Full path for download: %s", fullPath)
+
+	// Periksa keberadaan file di database
+	var file models.File
+	result := initializers.DB.Where("file_path = ?", fullPath).First(&file)
+	if result.Error != nil {
+		log.Printf("File not found in database: %v", result.Error)
+		c.JSON(http.StatusNotFound, gin.H{"error": "File tidak ditemukan"})
 		return
 	}
 
-	// Membuat path lengkap berdasarkan ID dan nama file
-	fullPath := fmt.Sprintf("%s/%s", id, filename)
-
-	containerURL := getBlobServiceClient().NewContainerURL(containerNameMeeting)
-	blobURL := containerURL.NewBlockBlobURL(fullPath)
-
-	downloadResponse, err := blobURL.Download(context.TODO(), 0, azblob.CountToEnd, azblob.BlobAccessConditions{}, false, azblob.ClientProvidedKeyOptions{})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to download file"})
+	// Periksa keberadaan file di sistem file
+	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+		log.Printf("File not found in system: %s", fullPath)
+		c.JSON(http.StatusNotFound, gin.H{"error": "File tidak ditemukan di sistem file"})
 		return
 	}
 
-	bodyStream := downloadResponse.Body(azblob.RetryReaderOptions{})
-	defer bodyStream.Close()
-
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
-	c.Header("Content-Type", "application/octet-stream")
-
-	// Mengirimkan data file ke client
-	io.Copy(c.Writer, bodyStream)
+	log.Printf("File downloaded successfully: %s", fullPath)
+	c.File(fullPath)
 }
 
 func MeetingIndex(c *gin.Context) {
@@ -412,7 +383,7 @@ func CreateExcelMeeting(c *gin.Context) {
 		Fill: excelize.Fill{Type: "pattern", Color: []string{"eba55b"}, Pattern: 1},
 		Alignment: &excelize.Alignment{
 			Horizontal: "center",
-			Vertical: "center",
+			Vertical:   "center",
 		},
 		Border: []excelize.Border{
 			{Type: "right", Color: "000000", Style: 1},
@@ -432,11 +403,11 @@ func CreateExcelMeeting(c *gin.Context) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	
+
 	// Fetch initial data from the database
 	var meetings []models.Meeting
 	initializers.DB.Find(&meetings)
-	
+
 	err = f.SetCellStyle("MEETING", "A2", fmt.Sprintf("G%d", len(meetings)+1), wrapstyle)
 
 	// Write initial data to the "MEETING" sheet
@@ -482,7 +453,7 @@ func CreateExcelMeeting(c *gin.Context) {
 				},
 				Alignment: &excelize.Alignment{
 					Horizontal: "center",
-					Vertical: "center",
+					Vertical:   "center",
 				},
 				Border: []excelize.Border{
 					{Type: "left", Color: "000000", Style: 1},
@@ -498,7 +469,7 @@ func CreateExcelMeeting(c *gin.Context) {
 				},
 				Alignment: &excelize.Alignment{
 					Horizontal: "center",
-					Vertical: "center",
+					Vertical:   "center",
 				},
 				Border: []excelize.Border{
 					{Type: "left", Color: "000000", Style: 1},
@@ -514,7 +485,7 @@ func CreateExcelMeeting(c *gin.Context) {
 				},
 				Alignment: &excelize.Alignment{
 					Horizontal: "center",
-					Vertical: "center",
+					Vertical:   "center",
 				},
 				Border: []excelize.Border{
 					{Type: "left", Color: "000000", Style: 1},
@@ -672,7 +643,6 @@ func UpdateSheetMeeting(c *gin.Context) {
 		c.String(http.StatusInternalServerError, "Error menyimpan file: %v", err)
 		return
 	}
-
 
 }
 

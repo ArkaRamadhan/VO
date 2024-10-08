@@ -140,8 +140,8 @@ func setMonthDataCuti(f *excelize.File, sheet, month string, rowOffset, colOffse
 	// cell values
 	data := map[int][]interface{}{
 		1 + rowOffset: {month},
-		3 + rowOffset: {"SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY",
-			"THURSDAY", "FRIDAY", "SATURDAY"},
+		3 + rowOffset: {"MINGGU", "SENIN", "SELASA", "RABU",
+			"KAMIS", "JUMAT", "SABTU"},
 	}
 
 	// Fill in the dates
@@ -187,7 +187,6 @@ func setMonthDataCuti(f *excelize.File, sheet, month string, rowOffset, colOffse
 		}
 		data[r] = week
 		data[r+1] = eventDetails
-
 		firstDay = 0 // Reset firstDay for subsequent weeks
 	}
 
@@ -221,7 +220,7 @@ func setMonthDataCuti(f *excelize.File, sheet, month string, rowOffset, colOffse
 		}
 	}
 	// set custom column width
-	if err = f.SetColWidth(sheet, string('B'+colOffset), string('H'+colOffset), 10); err != nil {
+	if err = f.SetColWidth(sheet, string('B'+colOffset), string('H'+colOffset), 15); err != nil {
 		fmt.Println(err)
 		return
 	}

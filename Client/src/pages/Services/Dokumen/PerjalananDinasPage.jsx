@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import App from "../../../components/Layouts/App";
 import { ReusableTable } from "../../../components/Fragments/Services/ReusableTable";
 import { jwtDecode } from "jwt-decode";
@@ -7,10 +7,10 @@ import {
   addPerdin,
   deletePerdin,
   updatePerdin,
-  getPerdinShow,
+  getPerdinShow
 } from "../../../../API/Dokumen/PerjalananDinas.service";
 import { useToken } from "../../../context/TokenContext";
-import { Modal, Button } from "flowbite-react"; // Import Modal dan Button dari flowbite-react
+import { Modal } from "flowbite-react";
 import { FormatDate } from "../../../Utilities/FormatDate";
 
 export function PerdinPage() {
@@ -28,12 +28,20 @@ export function PerdinPage() {
     ],
     services: "Perjalanan Dinas",
   });
-  const { token } = useToken(); // Ambil token dari context
+
+  const { token } = useToken();
   let userRole = "";
   if (token) {
     const decoded = jwtDecode(token);
     userRole = decoded.role;
   }
+
+  const [defaultValues, setDefaultValues] = useState({
+    no_perdin: "PD-ITS",
+    tanggal: "",
+    hotel: "",
+    transport: "",
+  });
 
   const [isShowModalOpen, setIsShowModalOpen] = useState(false);
   const [selectedPerdin, setSelectedPerdin] = useState(null);
@@ -42,16 +50,24 @@ export function PerdinPage() {
     try {
       const perdin = await getPerdinShow(id);
       setSelectedPerdin(perdin);
+      console.log("Perdin data:", perdin);
       setIsShowModalOpen(true);
     } catch (error) {
-      console.error("Error fetching Perdin:", error);
+      console.error("Error fetching perdin:", error);
     }
   };
+
+  useEffect(() => {
+    // Set default values in the formConfig
+    setFormConfig((prevConfig) => ({
+      ...prevConfig,
+      defaultValues,
+    }));
+  }, []); // Hanya panggil saat komponen di-mount
 
   return (
     <App services={formConfig.services}>
       <div className="overflow-auto">
-        {/* Tabel */}
         <ReusableTable
           formConfig={formConfig}
           setFormConfig={setFormConfig}
@@ -62,8 +78,8 @@ export function PerdinPage() {
           excel={{
             exportThis: "exportPerdin",
             updateThis: "updatePerdin",
-            import  : "uploadPerdin",
-          }}  
+            import: "uploadPerdin",
+          }}
           InfoColumn={true}
           UploadArsip={{
             get: "filesPerdin",
@@ -73,22 +89,22 @@ export function PerdinPage() {
           }}
           OnShow={handleShow}
         />
-        {/* End Tabel */}
       </div>
+
       {/* Show Modal */}
       <Modal show={isShowModalOpen} onClose={() => setIsShowModalOpen(false)}>
         <Modal.Header>Detail Perdin</Modal.Header>
         <Modal.Body>
           {selectedPerdin && (
             <div className="grid grid-cols-2 gap-4">
+              <p className="font-semibold">Nomor Perdin:</p>
+              <p>{selectedPerdin.no_perdin}</p>
               <p className="font-semibold">Tanggal:</p>
               <p>{FormatDate(selectedPerdin.tanggal)}</p>
-              <p className="font-semibold">No Perdin:</p>
-              <p>{selectedPerdin.no_perdin}</p>
               <p className="font-semibold">Deskripsi:</p>
               <p>{selectedPerdin.hotel}</p>
               <p className="font-semibold">~:</p>
-              <p>{selectedPerdin.transport}</p> 
+              <p>{selectedPerdin.transport}</p>
             </div>
           )}
         </Modal.Body>

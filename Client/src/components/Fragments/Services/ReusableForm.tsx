@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button, Label, Select, TextInput } from "flowbite-react";
 
 interface FormField {
@@ -13,6 +13,7 @@ interface FormConfig {
   onSubmit: (data: any) => void;
   action: string;
   services: string;
+  defaultValues?: Record<string, string>;
 }
 interface ReusableFormProps {
   config: FormConfig;
@@ -20,12 +21,21 @@ interface ReusableFormProps {
   setFormData: (data: any) => void;
 }
 
-export const  ReusableForm = ({
+export const ReusableForm = ({
   config,
   formData,
   setFormData,
 }: ReusableFormProps) => {
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    // Inisialisasi formData dengan defaultValues jika ada
+    const initialFormData = config.fields.reduce((acc, field) => {
+      acc[field.name] = config.defaultValues?.[field.name] || '';
+      return acc;
+    }, {});
+    setFormData(initialFormData);
+  }, [config.fields, config.defaultValues, setFormData]);
 
   const handleInputChange = ({
     target: { name, value },

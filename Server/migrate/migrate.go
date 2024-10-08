@@ -37,6 +37,7 @@ func main() {
 		&models.Arsip{},
 		&models.Meeting{},
 		&models.MeetingSchedule{},
+		&models.File{},
 	)
 
 }

@@ -37,6 +37,17 @@ export function updateSuratKeluar(id, data) {
     });
 }
 
+export function getSuratKeluarShow(id) {
+  return axios
+    .get(`${API_URL}/${id}`)
+    .then((response) => {
+      return response.data.SuratKeluar;
+    })
+    .catch((error) => {
+      throw new Error(`Gagal mengambil data. Alasan: ${error.message}`);
+    });
+}
+
 export function deleteSuratKeluar(id) {
   return axios
     .delete(`${API_URL}/${id}`)

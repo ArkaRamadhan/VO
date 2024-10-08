@@ -68,6 +68,7 @@ export function MemoPage() {
             import: "uploadMemo",
           }}
           InfoColumn={true}
+
           UploadArsip={{
             get: "filesMemo",
             upload: "uploadFileMemo",

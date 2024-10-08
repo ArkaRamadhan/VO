@@ -7,8 +7,11 @@ import {
   addArsip,
   deleteArsip,
   updateArsip,
+  getArsipShow,
 } from "../../../../API/DataInformasi/Arsip.service";
 import { useToken } from "../../../context/TokenContext";
+import { Modal } from "flowbite-react";
+import { FormatDate } from "../../../Utilities/FormatDate";
 
 export function ArsipPage() {
   const [formConfig, setFormConfig] = useState({
@@ -52,6 +55,22 @@ export function ArsipPage() {
     userRole = decoded.role;
   }
 
+  const [isShowModalOpen, setIsShowModalOpen] = useState(false);
+  const [selectedArsip, setSelectedArsip] = useState({});
+
+
+  const handleShow = async (id) => {
+    try {
+      const Arsip = await getArsipShow(id);
+      setSelectedArsip(Arsip);
+      setIsShowModalOpen(true);
+    } catch (error) {
+      console.error("Error fetching arsip:", error);
+    }
+  };
+
+  const {  no_arsip, jenis_dokumen, no_dokumen, keterangan, tanggal_dokumen, tanggal_penyerahan} = selectedArsip 
+
   return (
     <App services={formConfig.services}>
       <div className="overflow-auto">
@@ -75,9 +94,32 @@ export function ArsipPage() {
             download: "download",
             delete: "delete",
           }}
+          OnShow={handleShow}
         />
         {/* End Table */}
       </div>
+
+      <Modal show={isShowModalOpen} onClose={() => setIsShowModalOpen(false)}>
+        <Modal.Header>Detail Arsip</Modal.Header>
+        <Modal.Body>
+          {selectedArsip && (
+            <div className="grid grid-cols-2 gap-4">
+              <p className="font-semibold">No Arsip:</p>
+              <p>{no_arsip}</p>
+              <p className="font-semibold">Jenis Dokumen:</p>
+              <p>{jenis_dokumen}</p>
+              <p className="font-semibold">No Dokumen:</p>
+              <p>{no_dokumen}</p>
+              <p className="font-semibold">Keterangan:</p>
+              <p>{keterangan}</p>
+              <p className="font-semibold">Tanggal Dokumen:</p>
+              <p>{FormatDate(tanggal_dokumen)}</p>
+              <p className="font-semibold">Tanggal Penyerahan:</p>
+              <p>{FormatDate(tanggal_penyerahan)}</p>
+            </div>
+          )}
+        </Modal.Body>
+      </Modal>
     </App>
   );
 }

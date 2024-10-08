@@ -41,7 +41,7 @@ export function getMeetingListShow(id) {
   return axios
     .get(`${API_URL}/${id}`)
     .then((response) => {
-      return response.data.meetinglist;
+      return response.data.meetingschedule;
     })
     .catch((error) => {
       throw new Error(`Gagal mengambil data. Alasan: ${error.message}`);

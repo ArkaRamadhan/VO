@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -11,12 +11,13 @@ import (
 	"path/filepath"
 	"project-its/initializers"
 	"project-its/models"
+	"strconv"
+	"strings"
 	"time"
 
-	"github.com/Azure/azure-storage-blob-go/azblob"
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 	"github.com/xuri/excelize/v2"
+	"gorm.io/gorm"
 )
 
 type perdinRequest struct {
@@ -28,70 +29,44 @@ type perdinRequest struct {
 	CreateBy  string  `json:"create_by"`
 }
 
-func init() {
-	err := godotenv.Load() // Memuat file .env
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-
-	accountNamePerdin = os.Getenv("ACCOUNT_NAME")            // Mengambil nilai dari .env
-	accountKeyPerdin = os.Getenv("ACCOUNT_KEY")              // Mengambil nilai dari .env
-	containerNamePerdin = os.Getenv("CONTAINER_NAME_PERDIN") // Mengambil nilai dari .env
-}
-
-// Tambahkan variabel global untuk menyimpan kredensial
-var (
-	accountNamePerdin   string
-	accountKeyPerdin    string
-	containerNamePerdin string
-)
-
-func getBlobServiceClientPerdin() azblob.ServiceURL {
-	creds, err := azblob.NewSharedKeyCredential(accountNamePerdin, accountKeyPerdin)
-	if err != nil {
-		panic("Failed to create shared key credential: " + err.Error())
-	}
-
-	pipeline := azblob.NewPipeline(creds, azblob.PipelineOptions{})
-
-	// Build the URL for the Azure Blob Storage account
-	URL, err := url.Parse(fmt.Sprintf("https://%s.blob.core.windows.net/", accountNamePerdin))
-	if err != nil {
-		log.Fatal("Invalid URL format")
-	}
-
-	// Create a ServiceURL object that wraps the URL and the pipeline
-	serviceURL := azblob.NewServiceURL(*URL, pipeline)
-
-	return serviceURL
-}
-
 func UploadHandlerPerdin(c *gin.Context) {
-	id := c.PostForm("id") // Mendapatkan ID dari form data
+	id := c.PostForm("id")
 	file, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "File diperlukan"})
 		return
 	}
 
-	// Membuat path berdasarkan ID
-	filename := fmt.Sprintf("%s/%s", id, file.Filename)
-
-	// Membuka file
-	src, err := file.Open()
+	// Konversi id dari string ke uint
+	userID, err := strconv.ParseUint(id, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuka file"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID tidak valid"})
 		return
 	}
-	defer src.Close()
 
-	// Mengunggah file ke Azure Blob Storage
-	containerURL := getBlobServiceClient().NewContainerURL(containerNamePerdin)
-	blobURL := containerURL.NewBlockBlobURL(filename)
+	baseDir := "C:/UploadedFile/perdin"
+	dir := filepath.Join(baseDir, id)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		os.MkdirAll(dir, 0755)
+	}
 
-	_, err = azblob.UploadStreamToBlockBlob(context.TODO(), src, blobURL, azblob.UploadStreamToBlockBlobOptions{})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengunggah file"})
+	filePath := filepath.Join(dir, file.Filename)
+	if err := c.SaveUploadedFile(file, filePath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan file"})
+		return
+	}
+
+	// Menyimpan metadata file ke database
+	newFile := models.File{
+		UserID:      uint(userID), // Gunakan userID yang sudah dikonversi
+		FilePath:    filePath,
+		FileName:    file.Filename,
+		ContentType: file.Header.Get("Content-Type"),
+		Size:        file.Size,
+	}
+	result := initializers.DB.Create(&newFile)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan metadata file"})
 		return
 	}
 
@@ -99,86 +74,109 @@ func UploadHandlerPerdin(c *gin.Context) {
 }
 
 func GetFilesByIDPerdin(c *gin.Context) {
-	id := c.Param("id") // Mendapatkan ID dari URL
-
-	containerURL := getBlobServiceClient().NewContainerURL(containerNamePerdin)
-	prefix := fmt.Sprintf("%s/", id) // Prefix untuk daftar blob di folder tertentu (ID)
-
-	var files []string
-	for marker := (azblob.Marker{}); marker.NotDone(); {
-		listBlob, err := containerURL.ListBlobsFlatSegment(context.TODO(), marker, azblob.ListBlobsSegmentOptions{
-			Prefix: prefix, // Hanya daftar blob dengan prefix yang ditentukan (folder)
-		})
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat daftar file"})
-			return
-		}
-
-		for _, blobInfo := range listBlob.Segment.BlobItems {
-			files = append(files, blobInfo.Name)
-		}
-
-		marker = listBlob.NextMarker
-	}
-
-	c.JSON(http.StatusOK, gin.H{"files": files}) // Pastikan mengembalikan array files
-}
-
-// Fungsi untuk menghapus file dari Azure Blob Storage
-func DeleteFileHandlerPerdin(c *gin.Context) {
-	filename := c.Param("filename")
 	id := c.Param("id")
-	if filename == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Filename is required"})
+
+	var files []models.File
+	result := initializers.DB.Where("user_id = ?", id).Find(&files)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data file"})
 		return
 	}
 
-	// Membuat path lengkap berdasarkan ID dan nama file
-	fullPath := fmt.Sprintf("%s/%s", id, filename)
+	var fileNames []string
+	for _, file := range files {
+		fileNames = append(fileNames, file.FileName)
+	}
 
-	containerURL := getBlobServiceClient().NewContainerURL(containerNamePerdin)
-	blobURL := containerURL.NewBlockBlobURL(fullPath)
+	c.JSON(http.StatusOK, gin.H{"files": fileNames})
+}
 
-	// Menghapus blob
-	_, err := blobURL.Delete(context.TODO(), azblob.DeleteSnapshotsOptionNone, azblob.BlobAccessConditions{})
+func DeleteFileHandlerPerdin(c *gin.Context) {
+	encodedFilename := c.Param("filename")
+	filename, err := url.QueryUnescape(encodedFilename)
 	if err != nil {
-		log.Printf("Error deleting file: %v", err) // Log kesalahan
+		log.Printf("Error decoding filename: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid filename"})
+		return
+	}
+
+	id := c.Param("id")
+	log.Printf("Received ID: %s and Filename: %s", id, filename) // Tambahkan log ini
+
+	baseDir := "C:/UploadedFile/perdin"
+	fullPath := filepath.Join(baseDir, id, filename)
+
+	log.Printf("Attempting to delete file at path: %s", fullPath)
+
+	// Hapus file dari sistem file
+	err = os.Remove(fullPath)
+	if err != nil {
+		log.Printf("Error deleting file: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete file"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "File deleted successfully"}) // Pastikan ini ada
+	// Hapus metadata file dari database
+	result := initializers.DB.Where("file_path = ?", fullPath).Delete(&models.File{})
+	if result.Error != nil {
+		log.Printf("Error deleting file metadata: %v", result.Error)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete file metadata"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "File deleted successfully"})
 }
 
-// Fungsi untuk mendownload file dari Azure Blob Storage
 func DownloadFileHandlerPerdin(c *gin.Context) {
-	id := c.Param("id") // Mendapatkan ID dari URL
+	id := c.Param("id")
 	filename := c.Param("filename")
-	if filename == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Filename is required"})
+	baseDir := "C:/UploadedFile/perdin"
+	fullPath := filepath.Join(baseDir, id, filename)
+
+	log.Printf("Full path for download: %s", fullPath)
+
+	// Periksa keberadaan file di database
+	var file models.File
+	result := initializers.DB.Where("file_path = ?", fullPath).First(&file)
+	if result.Error != nil {
+		log.Printf("File not found in database: %v", result.Error)
+		c.JSON(http.StatusNotFound, gin.H{"error": "File tidak ditemukan"})
 		return
 	}
 
-	// Membuat path lengkap berdasarkan ID dan nama file
-	fullPath := fmt.Sprintf("%s/%s", id, filename)
-
-	containerURL := getBlobServiceClient().NewContainerURL(containerNamePerdin)
-	blobURL := containerURL.NewBlockBlobURL(fullPath)
-
-	downloadResponse, err := blobURL.Download(context.TODO(), 0, azblob.CountToEnd, azblob.BlobAccessConditions{}, false, azblob.ClientProvidedKeyOptions{})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to download file"})
+	// Periksa keberadaan file di sistem file
+	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+		log.Printf("File not found in system: %s", fullPath)
+		c.JSON(http.StatusNotFound, gin.H{"error": "File tidak ditemukan di sistem file"})
 		return
 	}
 
-	bodyStream := downloadResponse.Body(azblob.RetryReaderOptions{})
-	defer bodyStream.Close()
+	log.Printf("File downloaded successfully: %s", fullPath)
+	c.File(fullPath)
+}
 
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
-	c.Header("Content-Type", "application/octet-stream")
+func GetLatestPerdinNumber(NoPerdin string) (string, error) {
+	var lastPerdin models.Perdin
+	// Ubah pencarian untuk menggunakan format yang benar
+	searchPattern := fmt.Sprintf("%%/%s/%%", NoPerdin) // Ini akan mencari format seperti '%/ITS-SAG/M/%'
+	if err := initializers.DB.Where("no_perdin LIKE ?", searchPattern).Order("id desc").First(&lastPerdin).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "00001", nil // Jika tidak ada catatan, kembalikan 00001
+		}
+		return "", err
+	}
 
-	// Mengirimkan data file ke client
-	io.Copy(c.Writer, bodyStream)
+	// Ambil nomor memo terakhir, pisahkan, dan tambahkan 1
+	parts := strings.Split(*lastPerdin.NoPerdin, "/")
+	if len(parts) > 0 {
+		number, err := strconv.Atoi(parts[0])
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("%05d", number+1), nil // Tambahkan 1 ke nomor terakhir
+	}
+
+	return "00001", nil
 }
 
 func PerdinCreate(c *gin.Context) {
@@ -208,6 +206,26 @@ func PerdinCreate(c *gin.Context) {
 		tanggal = &parsedTanggal
 	}
 
+	nomor, err := GetLatestPerdinNumber(*requestBody.NoPerdin)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get latest memo number"})
+		return
+	}
+
+	// Cek apakah nomor yang diterima adalah "00001"
+	if nomor == "00001" {
+		// Jika "00001", berarti ini adalah entri pertama
+		log.Println("This is the first memo entry.")
+	}
+
+	tahun := time.Now().Year()
+	// Menentukan format NoMemo berdasarkan kategori
+	if *requestBody.NoPerdin == "PD-ITS" {
+		noPerdin := fmt.Sprintf("%s/PD-ITS/%d", nomor, tahun)
+		requestBody.NoPerdin = &noPerdin
+		log.Printf("Generated NoPerdin for Perdin: %s", *requestBody.NoPerdin) // Log nomor memo
+	}
+
 	perdin := models.Perdin{
 		NoPerdin:  requestBody.NoPerdin,
 		Tanggal:   tanggal, // Gunakan tanggal yang telah diparsing, bisa jadi nil jika input kosong
@@ -228,7 +246,6 @@ func PerdinCreate(c *gin.Context) {
 		"perdin": perdin,
 	})
 }
-
 func PerdinIndex(c *gin.Context) {
 
 	// Get models from DB
@@ -247,7 +264,14 @@ func PerdinShow(c *gin.Context) {
 	// Get models from DB
 	var perdin models.Perdin
 
-	initializers.DB.First(&perdin, id)
+	if err := initializers.DB.First(&perdin, id).Error; err != nil {
+		c.JSON(404, gin.H{"error": "perdin tidak ditemukan"})
+		return
+	}
+
+	// Log field yang terambil
+	log.Printf("Perdin retrieved: ID=%d, NoPerdin=%s, Tanggal=%v, Hotel=%s, Transport=%s, CreateBy=%s",
+		perdin.ID, getStringValue(perdin.NoPerdin), perdin.Tanggal, getStringValue(perdin.Hotel), getStringValue(perdin.Transport), perdin.CreateBy)
 
 	//Respond with them
 	c.JSON(200, gin.H{
@@ -278,13 +302,34 @@ func PerdinUpdate(c *gin.Context) {
 	requestBody.CreateBy = c.MustGet("username").(string)
 	perdin.CreateBy = requestBody.CreateBy
 
-	if requestBody.Tanggal != nil {
-		tanggal, err := time.Parse("2006-01-02", *requestBody.Tanggal)
+	nomor, err := GetLatestPerdinNumber(*requestBody.NoPerdin)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get latest memo number"})
+		return
+	}
+
+	// Cek apakah nomor yang diterima adalah "00001"
+	if nomor == "00001" {
+		// Jika "00001", berarti ini adalah entri pertama
+		log.Println("This is the first memo entry.")
+	}
+
+	tahun := time.Now().Year()
+	// Menentukan format NoMemo berdasarkan kategori
+	if *requestBody.NoPerdin == "PD-ITS" {
+		noPerdin := fmt.Sprintf("%s/PD-ITS/%d", nomor, tahun)
+		requestBody.NoPerdin = &noPerdin
+		log.Printf("Generated NoPerdin for Perdin: %s", *requestBody.NoPerdin) // Log nomor memo
+	}
+
+	// Update tanggal jika diberikan dan tidak kosong
+	if requestBody.Tanggal != nil && *requestBody.Tanggal != "" {
+		parsedTanggal, err := time.Parse("2006-01-02", *requestBody.Tanggal)
 		if err != nil {
-			c.JSON(400, gin.H{"error": "Format tanggal tidak valid: " + err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date format"})
 			return
 		}
-		perdin.Tanggal = &tanggal
+		perdin.Tanggal = &parsedTanggal
 	}
 
 	if requestBody.NoPerdin != nil {

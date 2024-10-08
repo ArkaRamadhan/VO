@@ -35,6 +35,17 @@ export const updateArsip = (id, data) => {
     });
 };
 
+export const getArsipShow = (id) => {
+  return axios
+    .get(`${API_URL}/${id}`)
+    .then((response) => {
+      return response.data.arsip;
+    })
+    .catch((error) => {
+      alert("Error fetching arsip:", error);
+    });
+};
+
 export const deleteArsip = (id) => {
   return axios
     .delete(`${API_URL}/${id}`)

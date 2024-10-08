@@ -252,15 +252,16 @@ func main() {
 	r.GET("/Arsip", controllers.ArsipIndex)
 	r.POST("/Arsip", controllers.ArsipCreate)
 	r.PUT("/Arsip/:id", controllers.ArsipUpdate)
+	r.GET("/Arsip/:id", controllers.ArsipShow)
 	r.DELETE("/Arsip/:id", controllers.ArsipDelete)
 	r.GET("/exportArsip", controllers.CreateExcelArsip)
 	r.GET("/updateArsip", controllers.UpdateSheetArsip)
 	r.POST("/uploadArsip", controllers.ImportExcelArsip)
 
-	r.POST("/upload", controllers.UploadHandler)
-	r.GET("/files/:id", controllers.GetFilesByID)
-	r.GET("/download/:id/:filename", controllers.DownloadFileHandler)
-	r.DELETE("/delete/:id/:filename", controllers.DeleteFileHandler)
+	r.POST("/upload", controllers.UploadHandlerArsip)
+	r.GET("/files/:id", controllers.GetFilesByIDArsip)
+	r.GET("/download/:id/:filename", controllers.DownloadFileHandlerArsip)
+	r.DELETE("/delete/:id/:filename", controllers.DeleteFileHandlerArsip)
 
 	r.Run()
 }

@@ -53,12 +53,8 @@ func ExportAllSheets(c *gin.Context) {
 	var jadwalCutis []models.JadwalCuti
 	var jadwalRapats []models.JadwalRapat
 	var bookingRapats []models.BookingRapat
-	var timelineDesktops []models.TimelineDesktop
-	var timelineProjects []models.TimelineProject
 
 	initializers.DB.Find(&memos)
-	initializers.DB.Find(&beritaAcaras)
-	initializers.DB.Find(&sks)
 	initializers.DB.Find(&surats)
 	initializers.DB.Find(&projects)
 	initializers.DB.Find(&perdins)
@@ -70,8 +66,6 @@ func ExportAllSheets(c *gin.Context) {
 	initializers.DB.Find(&jadwalCutis)
 	initializers.DB.Find(&jadwalRapats)
 	initializers.DB.Find(&bookingRapats)
-	initializers.DB.Find(&timelineDesktops)
-	initializers.DB.Find(&timelineProjects)
 
 	// Update data in each sheet
 	for _, sheetName := range sheetNames {

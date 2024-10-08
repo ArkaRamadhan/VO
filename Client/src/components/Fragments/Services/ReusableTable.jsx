@@ -571,41 +571,42 @@ const FileUploadModal = ({
     }
   };
 
-  const handleDeleteFile = async (fileName) => {
-    try {
-      const deleteFiles = UploadArsip.delete;
-      const response = await fetch(`http://localhost:8080/${deleteFiles}/${fileName}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        credentials: "include", // Sertakan cookie dalam permintaan
-      });
+ const handleDeleteFile = async (id, fileName) => {
+  try {
+    const encodedFileName = encodeURIComponent(fileName);
+    const deleteFiles = UploadArsip.delete; // Pastikan ini menghasilkan bagian URL yang benar
+    const response = await fetch(`http://localhost:8080/${deleteFiles}/${id}/${encodedFileName}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      credentials: "include", // Sertakan cookie dalam permintaan
+    });
 
-      if (response.ok) {
-        Swal.fire({
-          icon: "success",
-          title: "File deleted successfully!",
-          showConfirmButton: false,
-          timer: 1500,
-        });
-        fetchFiles(); // Refresh daftar file setelah penghapusan
-      } else {
-        Swal.fire({
-          icon: "error",
-          title: "Oops...",
-          text: "Error deleting file.",
-        });
-      }
-    } catch (error) {
+    if (response.ok) {
+      Swal.fire({
+        icon: "success",
+        title: "File deleted successfully!",
+        showConfirmButton: false,
+        timer: 1500,
+      });
+      fetchFiles(); // Refresh daftar file setelah penghapusan
+    } else {
       Swal.fire({
         icon: "error",
         title: "Oops...",
-        text: "Error occurred during the file deletion.",
+        text: "Error deleting file.",
       });
-      console.error("Error:", error);
     }
-  };
+  } catch (error) {
+    Swal.fire({
+      icon: "error",
+      title: "Oops...",
+      text: "Error occurred during the file deletion.",
+    });
+    console.error("Error:", error);
+  }
+};
 
   return (
     <Modal show={isOpen} onClose={onClose}>
@@ -618,14 +619,14 @@ const FileUploadModal = ({
               {/* Tambahkan mb-2 untuk margin bawah */}
               <span>{file}</span>
               <div className="flex gap-2">
-                <Button onClick={() => handleDeleteFile(file)} color="failure">
+                <Button onClick={() => handleDeleteFile(selectedId, file)} color="failure">
                   Hapus
                 </Button>
                 <Button
                   onClick={() => {
                     const downloadFiles = UploadArsip.download;
                     if (selectedId) {
-                      fetch(`http://localhost:8080/${downloadFiles}/${file}`, {
+                      fetch(`http://localhost:8080/${downloadFiles}/${selectedId}/${file}`, {
                         headers: {
                           Authorization: `Bearer ${token}`,
                         },

@@ -143,8 +143,8 @@ func setMonthDataBookingRapat(f *excelize.File, sheet, month string, rowOffset, 
 	// cell values
 	data := map[int][]interface{}{
 		1 + rowOffset: {month},
-		3 + rowOffset: {"SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY",
-			"THURSDAY", "FRIDAY", "SATURDAY"},
+		3 + rowOffset: {"MINGGU", "SENIN", "SELASA", "RABU",
+			"KAMIS", "JUMAT", "SABTU"},
 	}
 
 	// Fill in the dates
@@ -190,7 +190,6 @@ func setMonthDataBookingRapat(f *excelize.File, sheet, month string, rowOffset, 
 		}
 		data[r] = week
 		data[r+1] = eventDetails
-
 		firstDay = 0 // Reset firstDay for subsequent weeks
 	}
 
@@ -224,7 +223,7 @@ func setMonthDataBookingRapat(f *excelize.File, sheet, month string, rowOffset, 
 		}
 	}
 	// set custom column width
-	if err = f.SetColWidth(sheet, string('B'+colOffset), string('H'+colOffset), 10); err != nil {
+	if err = f.SetColWidth(sheet, string('B'+colOffset), string('H'+colOffset), 15); err != nil {
 		fmt.Println(err)
 		return
 	}

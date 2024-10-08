@@ -41,12 +41,14 @@ export function getPerdinShow(id) {
   return axios
     .get(`${API_URL}/${id}`)
     .then((response) => {
+      console.log(response.data.perdin); // Tambahkan log ini
       return response.data.perdin;
     })
     .catch((error) => {
       throw new Error(`Gagal mengambil data. Alasan: ${error.message}`);
     });
 }
+
 export function deletePerdin(id) {
   return axios
     .delete(`${API_URL}/${id}`)

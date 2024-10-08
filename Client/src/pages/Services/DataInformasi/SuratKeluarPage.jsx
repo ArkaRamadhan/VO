@@ -7,8 +7,11 @@ import {
   addSuratKeluar,
   deleteSuratKeluar,
   updateSuratKeluar,
+  getSuratKeluarShow,
 } from "../../../../API/DataInformasi/SuratKeluar.service";
 import { useToken } from "../../../context/TokenContext";
+import { Modal } from "flowbite-react";
+import { FormatDate } from "../../../Utilities/FormatDate";
 
 export function SuratKeluarPage() {
   const [formConfig, setFormConfig] = useState({
@@ -27,6 +30,19 @@ export function SuratKeluarPage() {
     const decoded = jwtDecode(token);
     userRole = decoded.role;
   }
+
+  const [isShowModalOpen, setIsShowModalOpen] = useState(false);
+  const [selectedSuratKeluar, setSelectedSuratKeluar] = useState(null);
+
+  const handleShow = async (id) => {
+    try {
+      const SuratKeluar = await getSuratKeluarShow(id);
+      setSelectedSuratKeluar(SuratKeluar);
+      setIsShowModalOpen(true);
+    } catch (error) {
+      console.error("Error fetching surat keluar:", error);
+    }
+  };
 
   return (
     <App services={formConfig.services}>
@@ -50,9 +66,30 @@ export function SuratKeluarPage() {
             download: "downloadSuratKeluar",
             delete: "deleteSuratKeluar",
           }}
+          OnShow={handleShow}
         />
         {/* End Table */}
       </div>
+      {/* Show Modal */}
+      <Modal show={isShowModalOpen} onClose={() => setIsShowModalOpen(false)}>
+        <Modal.Header>Detail Surat Keluar</Modal.Header>
+        <Modal.Body>
+          {selectedSuratKeluar && (
+            <div className="grid grid-cols-2 gap-4">
+              <p className="font-semibold">No Surat:</p>
+              <p>{selectedSuratKeluar.no_surat}</p>
+              <p className="font-semibold">Title:</p>
+              <p>{selectedSuratKeluar.title}</p>
+              <p className="font-semibold">From:</p>
+              <p>{selectedSuratKeluar.from}</p>
+              <p className="font-semibold">PIC:</p>
+              <p>{selectedSuratKeluar.pic}</p>
+              <p className="font-semibold">Tanggal:</p>
+              <p>{FormatDate(selectedSuratKeluar.tanggal)}</p>
+            </div>
+          )}
+        </Modal.Body>
+      </Modal>
     </App>
   );
 }
