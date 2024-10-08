@@ -23,7 +23,7 @@ import (
 type BcRequest struct {
 	ID       uint    `gorm:"primaryKey"`
 	Tanggal  *string `json:"tanggal"`
-	NoSurat  string  `json:"no_surat"`
+	NoSurat  *string  `json:"no_surat"`
 	Perihal  *string `json:"perihal"`
 	Pic      *string `json:"pic"`
 	CreateBy string  `json:"create_by"`
@@ -212,21 +212,21 @@ func BeritaAcaraCreate(c *gin.Context) {
 
 	log.Printf("Parsed date: %v", tanggal)
 
-	nomor, err := GetLatestBeritaAcaraNumber(requestBody.NoSurat)
+	nomor, err := GetLatestBeritaAcaraNumber(*requestBody.NoSurat)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get latest memo number"})
 		return
 	}
 
 	// Langsung gunakan `nomor` yang sudah diformat dengan benar
-	requestBody.NoSurat = nomor
+	requestBody.NoSurat = &nomor
 	log.Printf("Generated NoMemo: %s", requestBody.NoSurat) // Log nomor memo
 
 	requestBody.CreateBy = c.MustGet("username").(string)
 
 	bc := models.BeritaAcara{
 		Tanggal:  tanggal,
-		NoSurat:  &requestBody.NoSurat,
+		NoSurat:  requestBody.NoSurat,
 		Perihal:  requestBody.Perihal,
 		Pic:      requestBody.Pic,
 		CreateBy: requestBody.CreateBy,
@@ -277,30 +277,29 @@ func BeritaAcaraUpdate(c *gin.Context) {
 		return
 	}
 
-	nomor, err := GetLatestMemoNumber(requestBody.NoSurat)
+	nomor, err := GetLatestBeritaAcaraNumber(*requestBody.NoSurat)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get latest Berita Acara number"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get latest memo number"})
 		return
 	}
 
-	// Cek apakah nomor yang diterima adalah "00001"
-	if nomor == "00001" {
-		// Jika "00001", berarti ini adalah entri pertama
-		log.Println("This is the first Berita Acara entry.")
-	}
+	// // Cek apakah nomor yang diterima adalah "00001"
+	// if nomor == "00001" {
+	// 	// Jika "00001", berarti ini adalah entri pertama
+	// 	log.Println("This is the first berita acara entry.")
+	// }
 
-	tahun := time.Now().Year()
-
-	// Menentukan format NoMemo berdasarkan kategori
-	if requestBody.NoSurat == "ITS-SAG" {
-		noSurat := fmt.Sprintf("%s-ITS-SAG-M-%d", nomor, tahun)
-		requestBody.NoSurat = noSurat
-		log.Printf("Generated NoSurat for ITS-SAG: %s", requestBody.NoSurat) // Log nomor memo
-	} else if requestBody.NoSurat == "ITS-ISO" {
-		noSurat := fmt.Sprintf("%s-ITS-ISO-M-%d", nomor, tahun)
-		requestBody.NoSurat = noSurat
-		log.Printf("Generated NoSurat for ITS-ISO: %s", requestBody.NoSurat) // Log nomor memo
-	}
+	// tahun := time.Now().Year()
+	// // Menentukan format NoSurat berdasarkan kategori
+	// if *requestBody.NoSurat == "ITS-SAG" {
+	// 	noSurat := fmt.Sprintf("%s/ITS-SAG/BA/%d", nomor, tahun)
+	// 	requestBody.NoSurat = &noSurat
+	// 	log.Printf("Generated NoSurat for ITS-SAG: %s", *requestBody.NoSurat) // Log nomor Surat
+	// } else if *requestBody.NoSurat == "ITS-ISO" {
+	// 	noSurat := fmt.Sprintf("%s/ITS-ISO/BA/%d", nomor, tahun)
+	// 	requestBody.NoSurat = &noSurat
+	// 	log.Printf("Generated NoSurat for ITS-ISO: %s", *requestBody.NoSurat) // Log nomor Surat
+	// }
 
 	requestBody.CreateBy = c.MustGet("username").(string)
 	bc.CreateBy = requestBody.CreateBy
@@ -314,10 +313,9 @@ func BeritaAcaraUpdate(c *gin.Context) {
 		bc.Tanggal = &tanggal
 	}
 
-	if requestBody.NoSurat != "" {
-		bc.NoSurat = &requestBody.NoSurat
-	} else {
-		bc.NoSurat = bc.NoSurat
+	// Gunakan noSurat yang sudah diformat dengan benar
+	if requestBody.NoSurat != nil && *requestBody.NoSurat != "" {
+		bc.NoSurat = &nomor
 	}
 
 	if requestBody.Perihal != nil {

@@ -92,7 +92,6 @@ func GetFilesByIDMemo(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"files": fileNames})
 }
 
-
 func DeleteFileHandlerMemo(c *gin.Context) {
 	encodedFilename := c.Param("filename")
 	filename, err := url.QueryUnescape(encodedFilename)
@@ -279,77 +278,62 @@ func MemoShow(c *gin.Context) {
 }
 
 func MemoUpdate(c *gin.Context) {
-	var requestBody MemoRequest
+    var requestBody MemoRequest
 
-	if err := c.BindJSON(&requestBody); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body: " + err.Error()})
-		return
-	}
+    if err := c.BindJSON(&requestBody); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body: " + err.Error()})
+        return
+    }
 
-	id := c.Param("id")
-	var memo models.Memo
+    id := c.Param("id")
+    var memo models.Memo
 
-	// Cari memo berdasarkan ID
-	if err := initializers.DB.First(&memo, id).Error; err != nil {
-		log.Printf("Memo with ID %s not found: %v", id, err)
-		c.JSON(http.StatusNotFound, gin.H{"error": "Memo not found"})
-		return
-	}
+    // Cari memo berdasarkan ID
+    if err := initializers.DB.First(&memo, id).Error; err != nil {
+        log.Printf("Memo with ID %s not found: %v", id, err)
+        c.JSON(http.StatusNotFound, gin.H{"error": "Memo not found"})
+        return
+    }
 
-	nomor, err := GetLatestMemoNumber(*requestBody.NoMemo)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get latest memo number"})
-		return
-	}
+    // Update tanggal jika diberikan dan tidak kosong
+    if requestBody.Tanggal != nil && *requestBody.Tanggal != "" {
+        parsedTanggal, err := time.Parse("2006-01-02", *requestBody.Tanggal)
+        if err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date format"})
+            return
+        }
+        memo.Tanggal = &parsedTanggal
+    }
 
-	// Cek apakah nomor yang diterima adalah "00001"
-	if nomor == "00001" {
-		// Jika "00001", berarti ini adalah entri pertama
-		log.Println("This is the first memo entry.")
-	}
+    // Update NoMemo hanya jika diberikan dan tidak kosong
+    if requestBody.NoMemo != nil && *requestBody.NoMemo != "" {
+        nomor, err := GetLatestMemoNumber(*requestBody.NoMemo)
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get latest memo number"})
+            return
+        }
+        tahun := time.Now().Year()
+        noMemo := fmt.Sprintf("%s/%s/M/%d", nomor, *requestBody.NoMemo, tahun)
+        memo.NoMemo = &noMemo
+    }
 
-	tahun := time.Now().Year()
-	// Menentukan format NoMemo berdasarkan kategori
-	if *requestBody.NoMemo == "ITS-SAG" {
-		noMemo := fmt.Sprintf("%s/ITS-SAG/M/%d", nomor, tahun)
-		requestBody.NoMemo = &noMemo
-		log.Printf("Generated NoMemo for ITS-SAG: %s", *requestBody.NoMemo) // Log nomor memo
-	} else if *requestBody.NoMemo == "ITS-ISO" {
-		noMemo := fmt.Sprintf("%s/ITS-ISO/M/%d", nomor, tahun)
-		requestBody.NoMemo = &noMemo
-		log.Printf("Generated NoMemo for ITS-ISO: %s", *requestBody.NoMemo) // Log nomor memo
-	}
+    // Update Perihal hanya jika diberikan
+    if requestBody.Perihal != nil {
+        memo.Perihal = requestBody.Perihal
+    }
 
-	// Update tanggal jika diberikan dan tidak kosong
-	if requestBody.Tanggal != nil && *requestBody.Tanggal != "" {
-		parsedTanggal, err := time.Parse("2006-01-02", *requestBody.Tanggal)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date format"})
-			return
-		}
-		memo.Tanggal = &parsedTanggal
-	}
+    // Update Pic hanya jika diberikan
+    if requestBody.Pic != nil {
+        memo.Pic = requestBody.Pic
+    }
 
-	// Update nomor jika diberikan dan tidak kosong
-	if requestBody.NoMemo != nil && *requestBody.NoMemo != "" {
-		memo.NoMemo = requestBody.NoMemo
-	}
+    // Simpan perubahan
+    if err := initializers.DB.Save(&memo).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update memo"})
+        return
+    }
 
-	// Update fields lainnya
-	if requestBody.Perihal != nil {
-		memo.Perihal = requestBody.Perihal
-	}
-	if requestBody.Pic != nil {
-		memo.Pic = requestBody.Pic
-	}
-
-	// Simpan perubahan
-	if err := initializers.DB.Save(&memo).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update memo"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Memo updated successfully", "memo": memo})
+    c.JSON(http.StatusOK, gin.H{"message": "Memo updated successfully", "memo": memo})
 }
 
 func MemoDelete(c *gin.Context) {
