@@ -134,6 +134,7 @@ export const ReusableTable = ({
   };
 
   const handleEdit = (MainData) => {
+    console.log("Data yang terambil untuk edit:", MainData); // Log data yang terambil
     setFormModalOpen(true);
     setFormConfig((prevConfig) => ({
       ...prevConfig,
@@ -277,11 +278,13 @@ export const ReusableTable = ({
   };
 
   const renderCellContent = (field, value) => {
+    if (field.render) {
+      return field.render(value);
+    }
     switch (field.type) {
       case "number":
-        return `Rp. ${new Intl.NumberFormat("id-ID").format(value)}`; // Format currency dengan "Rp"
+        return `Rp. ${new Intl.NumberFormat("id-ID").format(value)}`;
       case "date":
-        // Periksa apakah value tidak null dan tidak undefined sebelum memformat tanggal
         if (field.name === "bulan") {
           return value ? FormatDate(value, "bulanTahun") : "";
         }
@@ -292,13 +295,11 @@ export const ReusableTable = ({
   };
 
   const header = formConfig.fields
-    .filter(field => field.visible !== false) // Hanya tampilkan field yang visible tidak false
+    .filter(field => field.visible !== false)
     .map((field) => {
       return {
         name: field.label,
-        selector: (row) => {
-          return renderCellContent(field, row[field.name]); // Panggil renderCellContent untuk semua field
-        },
+        selector: (row) => renderCellContent(field, row[field.name]),
         sortable: true,
       };
     });
@@ -420,8 +421,9 @@ export const ReusableTable = ({
           >
             <TbEyeSearch />
           </Button>
-          <Button
-            className="w-full"
+          {userRole === "admin" && (
+            <Button
+              className="w-full"
             onClick={() => handleDelete(data.ID)}
             color="failure"
           >
@@ -441,6 +443,7 @@ export const ReusableTable = ({
               />
             </svg>
           </Button>
+          )  }
           {UploadArsip && (
             <Button
               className="w-full"

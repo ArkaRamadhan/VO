@@ -30,6 +30,23 @@ const App = ({ services, children }) => {
     BookingRapat: [],
   });
 
+  const [filter, setFilter] = useState({
+    JadwalCuti: false,
+    JadwalRapat: true,
+    BookingRapat: true,
+    TimelineWallpaperDesktop: true,
+    TimelineProject: true,
+  });
+
+  const [selectedNotifications, setSelectedNotifications] = useState([]);
+
+  const handleFilterChange = (category) => {
+    setFilter((prevFilter) => ({
+      ...prevFilter,
+      [category]: !prevFilter[category],
+    }));
+  };
+
   // Logout user
   const handleSignOut = async () => {
     try {
@@ -56,23 +73,53 @@ const App = ({ services, children }) => {
 
   // Fetch events
   useEffect(() => {
-    GetNotification((data) => {
-      const groupedNotifications = {
-        JadwalCuti: [],
-        JadwalRapat: [],
-        BookingRapat: [],
-        TimelineWallpaperDesktop: [],
-        TimelineProject: [],
-      };
+    let prevNotificationIds = new Set();
 
-      data.forEach((event) => {
-        if (groupedNotifications[event.category]) {
-          groupedNotifications[event.category].push(event);
+    const fetchNotifications = () => {
+      GetNotification((data) => {
+        const groupedNotifications = {
+          JadwalCuti: [],
+          JadwalRapat: [],
+          BookingRapat: [],
+          TimelineWallpaperDesktop: [],
+          TimelineProject: [],
+        };
+
+        let newCategories = new Set();
+
+        data.forEach((event) => {
+          if (groupedNotifications[event.category]) {
+            groupedNotifications[event.category].push(event);
+            if (!prevNotificationIds.has(event.id)) {
+              newCategories.add(event.category);
+              prevNotificationIds.add(event.id);
+            }
+          }
+        });
+
+        setNotification(groupedNotifications);
+
+        if (newCategories.size > 0) {
+          let notificationList = Array.from(newCategories);
+
+          Swal.fire({
+            title: "Notifikasi Baru!",
+            html: `Anda memiliki notifikasi baru di kategori:<br><br>${notificationList.join(', ')}`,
+            icon: "info",
+            toast: true,
+            position: "top",
+            showConfirmButton: false,
+            timer: 5000,
+            timerProgressBar: true,
+          });
         }
       });
+    };
 
-      setNotification(groupedNotifications);
-    });
+    fetchNotifications();
+    const intervalId = setInterval(fetchNotifications, 60000); // Periksa setiap 1 menit
+
+    return () => clearInterval(intervalId);
   }, []);
 
   // Hapus Notif
@@ -103,6 +150,46 @@ const App = ({ services, children }) => {
         }
       }
     });
+  };
+
+  // Fungsi untuk menghandle perubahan pada checkbox
+  const handleSelectNotification = (id) => {
+    setSelectedNotifications((prevSelected) =>
+      prevSelected.includes(id)
+        ? prevSelected.filter((selectedId) => selectedId !== id)
+        : [...prevSelected, id]
+    );
+  };
+
+  // Fungsi untuk menghandle select all
+  const handleSelectAll = (category) => {
+    const allIds = notification[category].map((event) => event.id);
+    setSelectedNotifications((prevSelected) =>
+      allIds.every((id) => prevSelected.includes(id))
+        ? prevSelected.filter((id) => !allIds.includes(id))
+        : [...prevSelected, ...allIds.filter((id) => !prevSelected.includes(id))]
+    );
+  };
+
+  // Fungsi untuk menghapus notifikasi yang dipilih
+  const handleDeleteSelected = async () => {
+    try {
+      for (const id of selectedNotifications) {
+        await deleteNotification(id);
+      }
+      setNotification((prevData) => {
+        const updatedNotifications = { ...prevData };
+        Object.keys(updatedNotifications).forEach((category) => {
+          updatedNotifications[category] = updatedNotifications[category].filter(
+            (event) => !selectedNotifications.includes(event.id)
+          );
+        });
+        return updatedNotifications;
+      });
+      setSelectedNotifications([]);
+    } catch (error) {
+      Swal.fire("Gagal!", "Error saat hapus Notif:", error);
+    }
   };
 
   return (
@@ -157,15 +244,12 @@ const App = ({ services, children }) => {
         )}
 
         {userDetails.role !== "user" && (
-
           <SidebarItem
             href="/request"
             text="Request"
             icon={<VscGitPullRequestGoToChanges />}
           />
-
         )}
-
         <SidebarItem
           onClick={handleSignOut}
           text="Logout"
@@ -226,68 +310,105 @@ const App = ({ services, children }) => {
             >
               <Dropdown.Header>
                 <h1 className="text-base">Notification</h1>
+                <button onClick={handleDeleteSelected} className="text-red-600">
+                  Hapus yang Dipilih
+                </button>
               </Dropdown.Header>
-              {Object.keys(notification).every(
-                (category) => notification[category].length === 0
-              ) && (
-                  <span className="text-sm text-gray-600">
-                    <Badge color="warning" className="m-3">
-                      Tidak ada notifikasi
-                    </Badge>
-                  </span>
-                )}
-              {Object.keys(notification).map((category) => (
-                <div key={category}>
-                  {notification[category].length > 0 && (
-                    <>
-                      <h2 className="ml-2 font-bold">{category}</h2>
-                      {notification[category].map((event) => {
-                        const formattedStart = format(
-                          event.start,
-                          "dd MMMM HH:mm",
-                          {
-                            locale: idLocale,
-                          }
-                        );
-                        return (
-                          <Dropdown.Item key={event.id} className="flex gap-4">
-                            <div className="grid grid-cols-2">
-                              <span className="col-span-2 text-start ms-2 font-bold text-base truncate w-48">
-                                {event.title}
-                              </span>
-                              <span className="col-span-2">
-                                Pada Waktu {formattedStart}
-                              </span>
-                            </div>
-                            <div
-                              className="block text-sm truncate cursor-pointer hover:scale-110 text-red-600 rounded transition-all"
-                              onClick={() => {
-                                handleDelete(event.id);
-                              }}
-                            >
-                              <svg
-                                className="w-6 h-6"
-                                aria-hidden="true"
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="24"
-                                height="24"
-                                fill="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M8.586 2.586A2 2 0 0 1 10 2h4a2 2 0 0 1 2 2v2h3a1 1 0 1 1 0 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8a1 1 0 0 1 0-2h3V4a2 2 0 0 1 .586-1.414ZM10 6h4V4h-4v2Zm1 4a1 1 0 1 0-2 0v8a1 1 0 1 0 2 0v-8Zm4 0a1 1 0 1 0-2 0v8a1 1 0 1 0 2 0v-8Z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
-                            </div>
-                          </Dropdown.Item>
-                        );
-                      })}
-                    </>
+              <div className="p-2 grid grid-cols-2 gap-2">
+                {Object.keys(filter).map((category) => (
+                  <div key={category} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={filter[category]}
+                      onChange={() => handleFilterChange(category)}
+                      className="mr-2"
+                    />
+                    <label className="text-sm">{category}</label>
+                  </div>
+                ))}
+              </div>
+              <div className="max-h-[50vh] overflow-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200">
+                {Object.keys(notification).every(
+                  (category) => notification[category].length === 0
+                ) && (
+                    <span className="text-sm text-gray-600">
+                      <Badge color="warning" className="m-3">
+                        Tidak ada notifikasi
+                      </Badge>
+                    </span>
                   )}
-                </div>
-              ))}
+                {Object.keys(notification).map((category) => (
+                  <div key={category}>
+                    {filter[category] && notification[category].length > 0 && (
+                      <div>
+                        <div className="flex items-center ms-[1rem]">
+                          <input
+                            type="checkbox"
+                            onChange={() => handleSelectAll(category)}
+                            checked={notification[category].every((event) =>
+                              selectedNotifications.includes(event.id)
+                            )}
+                            className="mr-2"
+                          />
+                          <h2 className="m-2 font-bold text-xl">{category}</h2>
+                        </div>
+                        <div className="max-h-[50vh] overflow-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200">
+                          {notification[category].map((event) => {
+                            const formattedStart = format(
+                              event.start,
+                              "dd MMMM HH:mm",
+                              {
+                                locale: idLocale,
+                              }
+                            );
+                            return (
+                              <Dropdown.Item key={event.id} className="flex w-full justify-between">
+                                <div className="flex items-center gap-">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedNotifications.includes(event.id)}
+                                    onChange={() => handleSelectNotification(event.id)}
+                                  />
+                                  <div className="grid grid-cols-1 grid-rows-2">
+                                    <span className="text-start ms-2 font-bold text-base truncate w-48">
+                                      {event.title}
+                                    </span>
+                                    <span>
+                                      Pada Waktu {formattedStart}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div
+                                  className="block text-sm truncate cursor-pointer hover:scale-110 text-red-600 rounded transition-all"
+                                  onClick={() => {
+                                    handleDelete(event.id);
+                                  }}
+                                >
+                                  <svg
+                                    className="w-6 h-6"
+                                    aria-hidden="true"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="24"
+                                    height="24"
+                                    fill="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M8.586 2.586A2 2 0 0 1 10 2h4a2 2 0 0 1 2 2v2h3a1 1 0 1 1 0 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8a1 1 0 0 1 0-2h3V4a2 2 0 0 1 .586-1.414ZM10 6h4V4h-4v2Zm1 4a1 1 0 1 0-2 0v8a1 1 0 1 0 2 0v-8Zm4 0a1 1 0 1 0-2 0v8a1 1 0 1 0 2 0v-8Z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                </div>
+                              </Dropdown.Item>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </Dropdown>
           </div>
         </header>

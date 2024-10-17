@@ -449,7 +449,13 @@ func CreateExcelMeeting(c *gin.Context) {
 		case "Done":
 			styleID, err = f.NewStyle(&excelize.Style{
 				Font: &excelize.Font{
-					Color: "00ff80",
+					Color: "000000",
+					Bold: true,
+				},
+				Fill: excelize.Fill{
+					Type:    "pattern",
+					Color:   []string{"#5cb85c"},
+					Pattern: 1,
 				},
 				Alignment: &excelize.Alignment{
 					Horizontal: "center",
@@ -465,7 +471,13 @@ func CreateExcelMeeting(c *gin.Context) {
 		case "On Progress":
 			styleID, err = f.NewStyle(&excelize.Style{
 				Font: &excelize.Font{
-					Color: "ffa500",
+					Color: "000000",
+					Bold: true,
+				},
+				Fill: excelize.Fill{
+					Type:    "pattern",
+					Color:   []string{"#f0ad4e"},
+					Pattern: 1,
 				},
 				Alignment: &excelize.Alignment{
 					Horizontal: "center",
@@ -481,7 +493,13 @@ func CreateExcelMeeting(c *gin.Context) {
 		case "Cancel":
 			styleID, err = f.NewStyle(&excelize.Style{
 				Font: &excelize.Font{
-					Color: "FF3131",
+					Color: "000000",
+					Bold: true,
+				},
+				Fill: excelize.Fill{
+					Type:    "pattern",
+					Color:   []string{"#d9534f"},
+					Pattern: 1,
 				},
 				Alignment: &excelize.Alignment{
 					Horizontal: "center",

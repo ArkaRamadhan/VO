@@ -11,18 +11,24 @@ import {
 } from "../../../../API/KegiatanProses/MeetingSchedule.service";
 import { useToken } from "../../../context/TokenContext";
 import { Modal } from "flowbite-react";
-import { FormatDate } from "../../../Utilities/FormatDate";
+
+// Komponen untuk format hari dan tanggal
+const FormatHariTanggal = (tanggal) => {
+  const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+  return new Date(tanggal).toLocaleDateString('id-ID', options);
+};
 
 export function MeetingListPage() {
   const [formConfig, setFormConfig] = useState({
     fields: [
+      // Field baru untuk gabung hari dan tanggal
       {
-        name: "hari",
-        label: "Hari",
-        type: "text",
+        name: "tanggal",
+        label: "Hari dan Tanggal",
+        type: "date",
         required: true,
+        render: (value) => FormatHariTanggal(value), // Tambahkan fungsi render khusus
       },
-      { name: "tanggal", label: "Tanggal", type: "date", required: true },
       { name: "perihal", label: "Perihal", type: "text", required: true },
       {
         name: "waktu",
@@ -48,6 +54,7 @@ export function MeetingListPage() {
     ],
     services: "Meeting Schedule",
   });
+  
   const { token } = useToken(); // Ambil token dari context
   let userRole = "";
   if (token) {
@@ -62,7 +69,8 @@ export function MeetingListPage() {
   const handleShow = async (id) => {
     try {
       const meetingList = await getMeetingListShow(id);
-      console.log("Fetched meeting list:", meetingList);     setSelectedMeetingList(meetingList);
+      console.log("Fetched meeting list:", meetingList);
+      setSelectedMeetingList(meetingList);
       setIsShowModalOpen(true);
     } catch (error) {
       console.error("Error fetching memo:", error);
@@ -106,10 +114,11 @@ export function MeetingListPage() {
         <Modal.Body>
           {selectedMeetingList && (
             <div className="grid grid-cols-2 gap-4">
-              <p className="font-semibold">Hari :</p>
-              <p>{selectedMeetingList.hari}</p>
-              <p className="font-semibold">Tanggal :</p>
-              <p>{FormatDate(selectedMeetingList.tanggal)}</p>
+              <p className="font-semibold">Hari dan Tanggal :</p>
+              <p>
+                {/* Format hari dan tanggal di sini */}
+                {FormatHariTanggal(selectedMeetingList.tanggal)}
+              </p>
               <p className="font-semibold">Perihal :</p>
               <p>{selectedMeetingList.perihal}</p>
               <p className="font-semibold">Waktu :</p>

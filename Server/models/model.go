@@ -509,6 +509,11 @@ type File struct {
 	Size        int64     `gorm:"not null"`           // Ukuran file dalam byte
 }
 
+// TableName overrides the table name used by File to `files`, if you want to specify it explicitly
+func (File) TableName() string {
+	return "files"
+}
+
 type ConflictRequest struct {
 	gorm.Model
 	NewEventID uint
@@ -521,7 +526,4 @@ type ConflictRequest struct {
 	Date       time.Time
 }
 
-// TableName overrides the table name used by File to `files`, if you want to specify it explicitly
-func (File) TableName() string {
-	return "files"
-}
+

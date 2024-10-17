@@ -413,19 +413,88 @@ func CreateExcelMeetingList(c *gin.Context) {
 	var meetingList []models.MeetingSchedule
 	initializers.DB.Find(&meetingList)
 
-	// Define styles for different statuses
-	styleDone, _ := f.NewStyle(&excelize.Style{Font: &excelize.Font{Color: "0000FF", Bold: true}, Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"}})       // Biru
-	styleCancel, _ := f.NewStyle(&excelize.Style{Font: &excelize.Font{Color: "FF0000", Bold: true}, Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"}})     // Merah
-	styleReschedule, _ := f.NewStyle(&excelize.Style{Font: &excelize.Font{Color: "0000FF", Bold: true}, Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"}}) // Biru
-	styleOnProgress, _ := f.NewStyle(&excelize.Style{Font: &excelize.Font{Color: "FFA500", Bold: true}, Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"}}) // Orange
+	// Definisikan gaya untuk border
+	styleAll, err := f.NewStyle(&excelize.Style{
+		Border: []excelize.Border{
+			{Type: "left", Color: "000000", Style: 1},
+			{Type: "right", Color: "000000", Style: 1},
+			{Type: "top", Color: "000000", Style: 1},
+			{Type: "bottom", Color: "000000", Style: 1},
+		},
+	})
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Error membuat gaya: %v", err)
+		return
+	}
 
-	// Write initial data to the "MEETING SCHEDULE" sheet
+	// Definisikan gaya untuk status yang berbeda
+	styleDone, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Color: "000000", Bold: true},
+		Fill: excelize.Fill{
+			Type:    "pattern",
+			Color:   []string{"#5cb85c"},
+			Pattern: 1,
+		},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
+		Border: []excelize.Border{
+			{Type: "left", Color: "000000", Style: 1},
+			{Type: "right", Color: "000000", Style: 1},
+			{Type: "top", Color: "000000", Style: 1},
+			{Type: "bottom", Color: "000000", Style: 1},
+		},
+	})
+	styleCancel, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Color: "000000", Bold: true},
+		Fill: excelize.Fill{
+			Type:    "pattern",
+			Color:   []string{"#d9534f"},
+			Pattern: 1,
+		},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
+		Border: []excelize.Border{
+			{Type: "left", Color: "000000", Style: 1},
+			{Type: "right", Color: "000000", Style: 1},
+			{Type: "top", Color: "000000", Style: 1},
+			{Type: "bottom", Color: "000000", Style: 1},
+		},
+	})
+	styleReschedule, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Color: "000000", Bold: true},
+		Fill: excelize.Fill{
+			Type:    "pattern",
+			Color:   []string{"#0275d8"},
+			Pattern: 1,
+		},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
+		Border: []excelize.Border{
+			{Type: "left", Color: "000000", Style: 1},
+			{Type: "right", Color: "000000", Style: 1},
+			{Type: "top", Color: "000000", Style: 1},
+			{Type: "bottom", Color: "000000", Style: 1},
+		},
+	})
+	styleOnProgress, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Color: "000000", Bold: true},
+		Fill: excelize.Fill{
+			Type:    "pattern",
+			Color:   []string{"#f0ad4e"},
+			Pattern: 1,
+		},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
+		Border: []excelize.Border{
+			{Type: "left", Color: "000000", Style: 1},
+			{Type: "right", Color: "000000", Style: 1},
+			{Type: "top", Color: "000000", Style: 1},
+			{Type: "bottom", Color: "000000", Style: 1},
+		},
+	})
+
+	// Tulis data awal ke lembar "MEETING SCHEDULE"
 	meetingListSheetName := "MEETING SCHEDULE"
 	for i, meetingList := range meetingList {
-		tanggalString := meetingList.Tanggal.Format("2006-01-02")
 		rowNum := i + 2 // Start from the second row (first row is header)
 		f.SetCellValue(meetingListSheetName, fmt.Sprintf("A%d", rowNum), *meetingList.Hari)
-		f.SetCellValue(meetingListSheetName, fmt.Sprintf("B%d", rowNum), tanggalString)
+		f.SetCellValue(meetingListSheetName, fmt.Sprintf("B%d", rowNum), meetingList.Tanggal.Format("2006-01-02"))
 		f.SetCellValue(meetingListSheetName, fmt.Sprintf("C%d", rowNum), *meetingList.Perihal)
 
 		// Handle Waktu
@@ -451,7 +520,13 @@ func CreateExcelMeetingList(c *gin.Context) {
 		f.SetCellValue(meetingListSheetName, fmt.Sprintf("G%d", rowNum), *meetingList.Status)
 		f.SetCellValue(meetingListSheetName, fmt.Sprintf("H%d", rowNum), *meetingList.Pic)
 
-		// Apply style based on status
+		// Terapkan gaya border untuk semua sel
+		for col := 'A'; col <= 'H'; col++ {
+			cellName := fmt.Sprintf("%c%d", col, rowNum)
+			f.SetCellStyle(meetingListSheetName, cellName, cellName, styleAll)
+		}
+
+		// Terapkan gaya khusus untuk status
 		switch *meetingList.Status {
 		case "Done":
 			f.SetCellStyle(meetingListSheetName, fmt.Sprintf("G%d", rowNum), fmt.Sprintf("G%d", rowNum), styleDone)
@@ -463,20 +538,6 @@ func CreateExcelMeetingList(c *gin.Context) {
 			f.SetCellStyle(meetingListSheetName, fmt.Sprintf("G%d", rowNum), fmt.Sprintf("G%d", rowNum), styleOnProgress)
 		}
 	}
-
-	styleAll, err := f.NewStyle(&excelize.Style{
-		Border: []excelize.Border{
-			{Type: "left", Color: "000000", Style: 1},
-			{Type: "right", Color: "000000", Style: 1},
-			{Type: "top", Color: "000000", Style: 1},
-			{Type: "bottom", Color: "000000", Style: 1},
-		},
-	})
-	if err != nil {
-		return
-	}
-
-	err = f.SetCellStyle("MEETING SCHEDULE", "A2", "H"+strconv.Itoa(len(meetingList)+1), styleAll)
 
 	// Delete the default "Sheet1" sheet
 	if err := f.DeleteSheet("Sheet1"); err != nil {

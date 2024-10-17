@@ -14,6 +14,8 @@ import moment from "moment";
 import Swal from "sweetalert2";
 import { ColorPick } from "../../../../Utilities/ColorPick";
 import { Excel } from "../../../../Utilities/Excel";
+import { useToken } from "../../../../context/TokenContext";
+import { jwtDecode } from "jwt-decode";
 
 const initialState = {
   showScheduler: false,
@@ -49,6 +51,13 @@ function Timeline({
     top: 0,
     height: 0,
   });
+
+  const { token } = useToken(); // Ambil token dari context
+  let userRole = "";
+  if (token) {
+    const decoded = jwtDecode(token);
+    userRole = decoded.role;
+  }
 
   const parentRef = useRef(null);
 
@@ -409,7 +418,7 @@ function Timeline({
     popover = (
       <AddMorePopover
         headerItem={popoverState.headerItem}
-        eventItemClick={deleteEvent}
+        eventItemClick={userRole === "admin" ? deleteEvent : undefined}
         schedulerData={state.viewModel}
         closeAction={onSetAddMoreState}
         left={popoverState.left}
@@ -427,11 +436,13 @@ function Timeline({
           Tambah Resource
         </Button>
       </span>
-      {excel && <Excel
-        linkExportThis={excel.exportThis}
-        linkUpdateThis={excel.updateThis}
-        importExcel={excel.import}
-      />}
+      {userRole === "admin" && (
+        <Excel
+          linkExportThis={excel.exportThis}
+          linkUpdateThis={excel.updateThis}
+          importExcel={excel.import}
+        />
+      )}
     </div>
   );
 
@@ -447,14 +458,14 @@ function Timeline({
             nextClick={nextClick}
             onSelectDate={onSelectDate}
             onViewChange={onViewChange}
-            eventItemClick={deleteEvent}
+            eventItemClick={userRole === "admin" ? deleteEvent : undefined}
             updateEventStart={updateEventStart}
             updateEventEnd={updateEventEnd}
             moveEvent={moveEvent}
             newEvent={newEvent}
             onSetAddMoreState={onSetAddMoreState}
             toggleExpandFunc={toggleExpandFunc}
-            slotClickedFunc={slotClickedFunc}
+            slotClickedFunc={userRole === "admin" ? slotClickedFunc : undefined}
             leftCustomHeader={leftCustomHeader}
             parentRef={parentRef} // Teruskan ref ke Scheduler
           />

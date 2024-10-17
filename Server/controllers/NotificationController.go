@@ -28,22 +28,22 @@ func SetNotification(title string, startTime time.Time, category string) {
 
 	// Tentukan waktu notifikasi 24 jam sebelum event
 	notificationTime24 := startTime.Add(-24 * time.Hour)
-	log.Printf("24-hour notification scheduled for %s", notificationTime24)
+	log.Printf("Notifikasi 24 jam dijadwalkan untuk %s", notificationTime24)
 
 	// Tentukan waktu notifikasi 1 jam sebelum event
-	notificationTime0 := startTime.Add(time.Hour)
-	log.Printf("1-hour notification  for %s", notificationTime0)
+	notificationTime1 := startTime.Add(-1 * time.Hour)
+	log.Printf("Notifikasi 1 jam dijadwalkan untuk %s", notificationTime1)
 
 	// Simulasi pengiriman notifikasi 24 jam sebelum event
 	go func() {
 		time.Sleep(time.Until(notificationTime24))
-		log.Printf("24-hour notification sent for event %s at %s", title, notificationTime24) // Ubah ini
+		log.Printf("Notifikasi 24 jam dikirim untuk event %s pada %s", title, notificationTime24)
 	}()
 
 	// Simulasi pengiriman notifikasi 1 jam sebelum event
 	go func() {
-		time.Sleep(time.Until(notificationTime0))
-		log.Printf("1-hour notification sent for event %s at %s", title, notificationTime0) // Ubah ini
+		time.Sleep(time.Until(notificationTime1))
+		log.Printf("Notifikasi 1 jam dikirim untuk event %s pada %s", title, notificationTime1)
 	}()
 
 	notification := models.Notification{

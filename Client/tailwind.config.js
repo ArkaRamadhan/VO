@@ -27,6 +27,7 @@ module.exports = {
   },
   plugins: [
     flowbite.plugin(),
+    require('tailwind-scrollbar')({ preferredStrategy: 'pseudoelements' }),
     require("flowbite/plugin")({
       charts: true,
     }),

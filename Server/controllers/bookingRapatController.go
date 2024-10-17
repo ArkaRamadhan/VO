@@ -62,15 +62,18 @@ func CreateEventBookingRapat(c *gin.Context) {
 		return
 	}
 
-	// Cek bentrok
+	// Cek bentrok, kecualikan event yang sedang dibuat
 	var conflictingEvents []models.BookingRapat
-	if err := initializers.DB.Where("start < ? AND \"end\" > ?", event.End, event.Start).Find(&conflictingEvents).Error; err != nil {
+	if err := initializers.DB.Where("id != ? AND start < ? AND \"end\" > ?", event.ID, event.End, event.Start).Find(&conflictingEvents).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Log untuk memeriksa hasil query
 	log.Printf("Jumlah jadwal bentrok: %d", len(conflictingEvents))
+	for _, conflict := range conflictingEvents {
+		log.Printf("Bentrok dengan %s: Start: %s, End: %s", conflict.Title, conflict.Start, conflict.End)
+	}
 
 	// Atur status berdasarkan bentrok
 	if len(conflictingEvents) > 0 {
@@ -186,7 +189,6 @@ func setMonthDataBookingRapat(f *excelize.File, sheet, month string, rowOffset, 
 				var startDate, endDate time.Time
 				if event.AllDay {
 					startDate, _ = time.Parse("2006-01-02", event.Start[:10])
-					endDate, _ = time.Parse("2006-01-02", event.End[:10])
 				} else {
 					startDate, _ = time.Parse(time.RFC3339, event.Start)
 					endDate, _ = time.Parse(time.RFC3339, event.End)

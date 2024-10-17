@@ -11,11 +11,20 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import listPlugin from "@fullcalendar/list";
 import { Excel } from "../../../../Utilities/Excel"; // Import komponen Excel
+import { useToken } from "../../../../context/TokenContext";
+import { jwtDecode } from "jwt-decode";
 
 export const Calendar = ({ view, get, add, remove, excel }) => {
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [formData, setFormData] = useState({});
   const [currentEvents, setCurrentEvents] = useState([]);
+
+  const { token } = useToken(); // Ambil token dari context
+  let userRole = "";
+  if (token) {
+    const decoded = jwtDecode(token);
+    userRole = decoded.role;
+  }
 
   const onCloseFormModal = () => {
     setFormModalOpen(false);
@@ -119,7 +128,13 @@ export const Calendar = ({ view, get, add, remove, excel }) => {
       <div className="bg-gray-50 p-[15px] rounded w-[200px] max-h-[85vh] overflow-auto">
         <h2 className="text-xl mt-0 mb-2 font-bold flex justify-between">
           {currentEvents.length} Jadwal
-          {excel && <Excel linkExportThis={excel.exportThis} linkUpdateThis={excel.updateThis} importExcel={excel.import} />}
+          {userRole === "admin" && excel && (
+            <Excel
+              linkExportThis={excel.exportThis}
+              linkUpdateThis={excel.updateThis}
+              importExcel={excel.import}
+            />)
+          }
         </h2>
         <div className="flex flex-col gap-2">
           {currentEvents.length === 0 ? (
@@ -134,7 +149,7 @@ export const Calendar = ({ view, get, add, remove, excel }) => {
               return (
                 <div
                   key={event.id}
-                  className="ring-2 ring-slate-200 overflow-auto grow shadow py-2 px-3 rounded"
+                  className="ring-2 ring-slate-200 overflow-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200 grow shadow py-2 px-3 rounded"
                   style={{ backgroundColor: event.color }}
                 >
                   <div className="font-bold text-white">{event.title}</div>
@@ -187,7 +202,7 @@ export const Calendar = ({ view, get, add, remove, excel }) => {
           dayMaxEvents={true}
           events={currentEvents}
           select={handleDateClick}
-          eventClick={handleEventClick}
+          eventClick={userRole === "admin" ? handleEventClick : undefined}
         />
       </div>
 
