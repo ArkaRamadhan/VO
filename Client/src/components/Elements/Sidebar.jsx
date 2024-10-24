@@ -10,7 +10,7 @@ import {
 const SidebarContext = createContext();
 
 export default function Sidebar({ children, img, title, username, email }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   return (
     <aside className="h-screen">

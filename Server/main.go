@@ -68,7 +68,6 @@ func main() {
 	r.PUT("/meetingSchedule/:id", controllers.MeetingListUpdate)
 	r.DELETE("/meetingSchedule/:id", controllers.MeetingListDelete)
 	r.GET("/exportMeetingList", controllers.CreateExcelMeetingList)
-	r.GET("/updateMeetingList", controllers.UpdateSheetMeetingList)
 	r.POST("/uploadMeetingList", controllers.ImportExcelMeetingList)
 
 	r.POST("/uploadFileMeetingList", controllers.UploadHandlerMeetingList)
@@ -83,7 +82,6 @@ func main() {
 	r.PUT("/meetings/:id", controllers.MeetingUpdate)
 	r.DELETE("/meetings/:id", controllers.MeetingDelete)
 	r.GET("/exportMeeting", controllers.CreateExcelMeeting)
-	r.GET("/updateMeeting", controllers.UpdateSheetMeeting)
 	r.POST("/uploadMeeting", controllers.ImportExcelMeeting)
 
 	r.POST("/uploadFileMeeting", controllers.UploadHandlerMeeting)
@@ -98,7 +96,6 @@ func main() {
 	r.PUT("/memo/:id", controllers.MemoUpdate)
 	r.DELETE("/memo/:id", controllers.MemoDelete)
 	r.GET("/exportMemo", controllers.ExportMemoHandler)
-	r.GET("/updateMemo", controllers.UpdateSheetMemo)
 	r.POST("/uploadMemo", controllers.ImportExcelMemo)
 
 	r.GET("/beritaAcara", controllers.BeritaAcaraIndex)
@@ -107,7 +104,6 @@ func main() {
 	r.PUT("/beritaAcara/:id", controllers.BeritaAcaraUpdate)
 	r.DELETE("/beritaAcara/:id", controllers.BeritaAcaraDelete)
 	r.GET("/exportBeritaAcara", controllers.ExportBeritaAcaraHandler)
-	// r.GET("/updateBeritaAcara", controllers.UpdateSheetBeritaAcara)
 	r.POST("/uploadBeritaAcara", controllers.ImportExcelBeritaAcara)
 
 	r.POST("/uploadFileBeritaAcara", controllers.UploadHandlerBeritaAcara)
@@ -121,7 +117,6 @@ func main() {
 	r.PUT("/surat/:id", controllers.SuratUpdate)
 	r.DELETE("/surat/:id", controllers.SuratDelete)
 	r.GET("/exportSurat", controllers.ExportSuratHandler)
-	// r.GET("/updateSurat", controllers.UpdateSheetSurat)
 	r.POST("/uploadSurat", controllers.ImportExcelSurat)
 
 	r.POST("/uploadFileSurat", controllers.UploadHandlerSurat)
@@ -135,7 +130,6 @@ func main() {
 	r.PUT("/sk/:id", controllers.SkUpdate)
 	r.DELETE("/sk/:id", controllers.SkDelete)
 	r.GET("/exportSk", controllers.ExportSkHandler)
-	// r.GET("/updateSK", controllers.UpdateSheetSK)
 	r.POST("/uploadSk", controllers.ImportExcelSk)
 
 	r.POST("/uploadFileSk", controllers.UploadHandlerSk)
@@ -155,7 +149,6 @@ func main() {
 	r.GET("/Project/:id", controllers.ProjectShow)
 	r.DELETE("/Project/:id", controllers.ProjectDelete)
 	r.GET("/exportProject", controllers.ExportProjectHandler)
-	r.GET("/updateProject", controllers.UpdateSheetProject)
 	r.POST("/uploadProject", controllers.ImportExcelProject)
 
 	r.POST("/uploadFileProject", controllers.UploadHandlerProject)
@@ -210,7 +203,6 @@ func main() {
 	r.DELETE("/Perdin/:id", controllers.PerdinDelete)
 	r.GET("/Perdin/:id", controllers.PerdinShow)
 	r.GET("/exportPerdin", controllers.CreateExcelPerdin)
-	r.GET("/updatePerdin", controllers.UpdateSheetPerdin)
 	r.POST("/uploadPerdin", controllers.ImportExcelPerdin)
 
 	r.POST("/uploadFilePerdin", controllers.UploadHandlerPerdin)
@@ -225,7 +217,6 @@ func main() {
 	r.DELETE("/SuratMasuk/:id", controllers.SuratMasukDelete)
 	r.GET("/SuratMasuk/:id", controllers.SuratMasukShow)
 	r.GET("/exportSuratMasuk", controllers.CreateExcelSuratMasuk)
-	r.GET("/updateSuratMasuk", controllers.UpdateSheetSuratMasuk)
 	r.POST("/importSuratMasuk", controllers.ImportExcelSuratMasuk)
 
 	r.POST("/uploadFileSuratMasuk", controllers.UploadHandlerSuratMasuk)
@@ -240,7 +231,6 @@ func main() {
 	r.DELETE("/SuratKeluar/:id", controllers.SuratKeluarDelete)
 	r.GET("/SuratKeluar/:id", controllers.SuratKeluarShow)
 	r.GET("/exportSuratKeluar", controllers.CreateExcelSuratKeluar)
-	r.GET("/updateSuratKeluar", controllers.UpdateSheetSuratKeluar)
 	r.POST("/importSuratKeluar", controllers.ImportExcelSuratKeluar)
 
 	r.POST("/uploadFileSuratKeluar", controllers.UploadHandlerSuratKeluar)
@@ -256,7 +246,6 @@ func main() {
 	r.DELETE("/Arsip/:id", controllers.ArsipDelete)
 
 	r.GET("/exportArsip", controllers.CreateExcelArsip)
-	r.GET("/updateArsip", controllers.UpdateSheetArsip)
 	r.POST("/uploadArsip", controllers.ImportExcelArsip)
 
 	r.POST("/upload", controllers.UploadHandlerArsip)

@@ -50,17 +50,20 @@ func CreateEventBookingRapat(c *gin.Context) {
 		return
 	}
 
-	// Parsing waktu tanpa menyimpan ke variabel
+	var startTime time.Time
 	if event.AllDay {
-		_, err = time.ParseInLocation("2006-01-02T15:04:05", event.Start+"T00:00:00", loc)
+		startTime, err = time.ParseInLocation("2006-01-02T15:04:05", event.Start+"T00:00:00", loc)
 	} else {
-		_, err = time.ParseInLocation(time.RFC3339, event.Start, loc)
+		startTime, err = time.ParseInLocation(time.RFC3339, event.Start, loc)
 	}
 
 	if err != nil {
 		log.Printf("Error parsing start time: %v", err)
 		return
 	}
+
+	// Panggil fungsi SetNotification setelah event berhasil disimpan
+	SetNotification(event.Title, startTime, "BookingRapat")
 
 	// Cek bentrok, kecualikan event yang sedang dibuat
 	var conflictingEvents []models.BookingRapat
@@ -108,7 +111,7 @@ func DeleteEventBookingRapat(c *gin.Context) {
 func ExportBookingRapatToExcel(c *gin.Context) {
 	// Ambil data dari model BookingRapat
 	var events_rapat []models.BookingRapat
-	if err := initializers.DB.Find(&events_rapat).Error; err != nil {
+	if err := initializers.DB.Where("status = ?", "acc").Find(&events_rapat).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -147,7 +150,7 @@ func ExportBookingRapatToExcel(c *gin.Context) {
 	}
 
 	// Set header untuk download file
-	c.Header("Content-Disposition", "attachment; filename=Calendar2024.xlsx")
+	c.Header("Content-Disposition", "attachment; filename=its_report_bookingRapat.xlsx")
 	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 	c.Header("Content-Length", strconv.Itoa(len(buffer.Bytes())))
 	c.Writer.Write(buffer.Bytes())
@@ -155,19 +158,26 @@ func ExportBookingRapatToExcel(c *gin.Context) {
 
 func setMonthDataBookingRapat(f *excelize.File, sheet, month string, rowOffset, colOffset int, events_rapat []models.BookingRapat) {
 	var (
-		monthStyle, titleStyle, dataStyle, blankStyle,
-		grayBlankStyle, grayDataStyle int
-		err  error
-		addr string
+		monthStyle, titleStyle, dataStyle, blankStyle int
+		err                                           error
+		addr                                          string
 	)
-	// Get the first day of the month and the number of days in the month
+
+	// Definisikan loc di sini
+	loc, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		fmt.Printf("Error loading location: %v", err)
+		return
+	}
+
 	monthTime, err := time.Parse("January 2006", month)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+	// Get the first day of the month and the number of days in the month
 	firstDay := monthTime.Weekday()
-	daysInMonth := time.Date(monthTime.Year(), monthTime.Month()+1, 0, 0, 0, 0, 0, time.UTC).Day()
+	daysInMonth := time.Date(monthTime.Year(), monthTime.Month()+1, 0, 0, 0, 0, 0, loc).Day()
 
 	// cell values
 	data := map[int][]interface{}{
@@ -179,46 +189,94 @@ func setMonthDataBookingRapat(f *excelize.File, sheet, month string, rowOffset, 
 	// Fill in the dates
 	day := 1
 	for r := 4 + rowOffset; day <= daysInMonth; r += 2 {
-		week := make([]interface{}, 7)
+		week := make([]interface{}, 7) // Inisialisasi ulang array week untuk setiap baris baru
 		eventDetails := make([]interface{}, 7)
-		for d := firstDay; d < 7 && day <= daysInMonth; d++ {
-			week[d] = day
-
-			// Cek apakah ada event pada hari ini
-			for _, event := range events_rapat {
-				var startDate, endDate time.Time
-				if event.AllDay {
-					startDate, _ = time.Parse("2006-01-02", event.Start[:10])
-				} else {
-					startDate, _ = time.Parse(time.RFC3339, event.Start)
-					endDate, _ = time.Parse(time.RFC3339, event.End)
-				}
-				currentDate := time.Date(monthTime.Year(), monthTime.Month(), day, 0, 0, 0, 0, time.UTC)
-
-				if (currentDate.Equal(startDate) || currentDate.After(startDate)) && currentDate.Before(endDate.AddDate(0, 0, 1)) {
-					var eventDetail string
-					if event.AllDay {
-						eventDetail = fmt.Sprintf("%s\nAllDay", event.Title)
-					} else {
-						startTime := startDate.Format("15:04")
-						endTime := endDate.Format("15:04")
-						eventDetail = fmt.Sprintf("%s\n%s - %s", event.Title, startTime, endTime)
-					}
-
-					// Gabungkan detail acara jika sudah ada
-					if eventDetails[d] != nil {
-						eventDetails[d] = fmt.Sprintf("%s\n%s", eventDetails[d], eventDetail)
-					} else {
-						eventDetails[d] = eventDetail
-					}
-				}
+		for d := 0; d < 7; d++ { // Mulai loop dari 0 hingga 6 (Minggu hingga Sabtu)
+			if r == 4+rowOffset && d < int(firstDay) {
+				// Jika ini adalah baris pertama dan hari ini sebelum 'firstDay', biarkan kosong
+				continue
 			}
+			if day <= daysInMonth {
+				week[d] = day // Isi tanggal
 
-			day++
+				// Cek apakah ada event pada hari ini
+				for _, event := range events_rapat {
+					var startDate, endDate time.Time
+					if event.AllDay {
+						startDate, err = time.ParseInLocation("2006-01-02", event.Start[:10], loc)
+						if err != nil {
+							fmt.Printf("Error parsing all-day start date: %v\n", err)
+							continue
+						}
+						endDate = startDate // Set endDate to startDate for all-day events
+					} else {
+						startDate, _ = time.Parse("2006-01-02T15:04:05", event.Start[:10]+"T00:00:00")
+						endDate, _ = time.Parse("2006-01-02T15:04:05", event.End[:10]+"T00:00:00")
+					}
+					currentDate := time.Date(monthTime.Year(), monthTime.Month(), day, 0, 0, 0, 0, time.UTC) // Pastikan waktu diatur ke 00:00:00
+					fmt.Printf("Current Date: %s, Start Date: %s, End Date: %s\n", currentDate, startDate, endDate)
+
+					// Periksa apakah currentDate sama dengan startDate atau berada di antara startDate dan endDate
+					if currentDate.Equal(startDate) || (currentDate.After(startDate) && currentDate.Before(endDate.AddDate(0, 0, 1))) {
+						var eventDetail string
+						if event.AllDay {
+							eventDetail = fmt.Sprintf("%s\nAllDay", event.Title)
+						} else {
+							startDate, _ = time.Parse(time.RFC3339, event.Start)
+							endDate, _ = time.Parse(time.RFC3339, event.End)
+							// Format hanya jam dan menit dari tanggal
+							eventDetail = fmt.Sprintf("%s\n%s - %s", event.Title, startDate.Format("15:04"), endDate.Format("15:04"))
+						}
+
+						// Gabungkan detail acara jika sudah ada
+						if eventDetails[d] != nil {
+							eventDetails[d] = fmt.Sprintf("%s\n%s", eventDetails[d], eventDetail)
+						} else {
+							eventDetails[d] = eventDetail
+						}
+						// Hanya terapkan warna untuk event pertama pada hari itu
+						if event.Title != "" && eventDetails[d] == eventDetail { // Perubahan kondisi di sini
+							cellAddr, _ := excelize.JoinCellName(string('B'+colOffset+int(d)), r+1)
+
+							// Buat gaya baru dengan warna latar belakang
+							style, err := f.NewStyle(&excelize.Style{
+								Fill: excelize.Fill{
+									Type:    "pattern",
+									Color:   []string{event.Color},
+									Pattern: 1,
+								},
+								Font:      &excelize.Font{Size: 9},
+								Alignment: &excelize.Alignment{WrapText: true},
+								Border: []excelize.Border{
+									{Type: "left", Color: "DADEE0", Style: 1},
+									{Type: "right", Color: "DADEE0", Style: 1},
+									{Type: "top", Color: "DADEE0", Style: 1},
+									{Type: "bottom", Color: "DADEE0", Style: 1},
+								},
+							})
+							if err != nil {
+								fmt.Printf("Error membuat gaya untuk sel %s: %v\n", cellAddr, err)
+								continue
+							}
+
+							// Terapkan gaya ke sel
+							if err := f.SetCellStyle(sheet, cellAddr, cellAddr, style); err != nil {
+								fmt.Printf("Error menerapkan gaya ke sel %s: %v\n", cellAddr, err)
+							} else {
+								fmt.Printf("Berhasil menerapkan gaya dengan warna %s ke sel %s\n", event.Color, cellAddr)
+							}
+						}
+					}
+				}
+
+				day++ // Increment day hanya jika hari ini diisi
+			}
 		}
 		data[r] = week
 		data[r+1] = eventDetails
-		firstDay = 0 // Reset firstDay for subsequent weeks
+		if r == 4+rowOffset {
+			firstDay = 0 // Reset firstDay untuk minggu berikutnya
+		}
 	}
 
 	// custom rows height
@@ -230,7 +288,6 @@ func setMonthDataBookingRapat(f *excelize.File, sheet, month string, rowOffset, 
 	left := excelize.Border{Type: "left", Style: 1, Color: "DADEE0"}
 	right := excelize.Border{Type: "right", Style: 1, Color: "DADEE0"}
 	bottom := excelize.Border{Type: "bottom", Style: 1, Color: "DADEE0"}
-	fill := excelize.Fill{Type: "pattern", Color: []string{"EFEFEF"}, Pattern: 1}
 
 	// set each cell value
 	for r, row := range data {
@@ -250,16 +307,19 @@ func setMonthDataBookingRapat(f *excelize.File, sheet, month string, rowOffset, 
 			return
 		}
 	}
+
 	// set custom column width
 	if err = f.SetColWidth(sheet, string('B'+colOffset), string('H'+colOffset), 15); err != nil {
 		fmt.Println(err)
 		return
 	}
+
 	// merge cell for the 'MONTH'
 	if err = f.MergeCell(sheet, fmt.Sprintf("%s%d", string('B'+colOffset), 1+rowOffset), fmt.Sprintf("%s%d", string('D'+colOffset), 1+rowOffset)); err != nil {
 		fmt.Println(err)
 		return
 	}
+
 	// define font style for the 'MONTH'
 	if monthStyle, err = f.NewStyle(&excelize.Style{
 		Font: &excelize.Font{Color: "1f7f3b", Bold: true, Size: 22, Family: "Arial"},
@@ -267,11 +327,13 @@ func setMonthDataBookingRapat(f *excelize.File, sheet, month string, rowOffset, 
 		fmt.Println(err)
 		return
 	}
+
 	// set font style for the 'MONTH'
 	if err = f.SetCellStyle(sheet, fmt.Sprintf("%s%d", string('B'+colOffset), 1+rowOffset), fmt.Sprintf("%s%d", string('D'+colOffset), 1+rowOffset), monthStyle); err != nil {
 		fmt.Println(err)
 		return
 	}
+
 	// define style for the 'SUNDAY' to 'SATURDAY'
 	if titleStyle, err = f.NewStyle(&excelize.Style{
 		Font:      &excelize.Font{Color: "1f7f3b", Size: 10, Bold: true, Family: "Arial"},
@@ -282,11 +344,13 @@ func setMonthDataBookingRapat(f *excelize.File, sheet, month string, rowOffset, 
 		fmt.Println(err)
 		return
 	}
+
 	// set style for the 'SUNDAY' to 'SATURDAY'
 	if err = f.SetCellStyle(sheet, fmt.Sprintf("%s%d", string('B'+colOffset), 3+rowOffset), fmt.Sprintf("%s%d", string('H'+colOffset), 3+rowOffset), titleStyle); err != nil {
 		fmt.Println(err)
 		return
 	}
+
 	// define cell border for the date cell in the date range
 	if dataStyle, err = f.NewStyle(&excelize.Style{
 		Border: []excelize.Border{top, left, right},
@@ -294,6 +358,7 @@ func setMonthDataBookingRapat(f *excelize.File, sheet, month string, rowOffset, 
 		fmt.Println(err)
 		return
 	}
+
 	// set cell border for the date cell in the date range
 	for _, r := range []int{4, 6, 8, 10, 12, 14} {
 		if err = f.SetCellStyle(sheet, fmt.Sprintf("%s%d", string('B'+colOffset), r+rowOffset),
@@ -302,6 +367,7 @@ func setMonthDataBookingRapat(f *excelize.File, sheet, month string, rowOffset, 
 			return
 		}
 	}
+
 	// define cell border for the blank cell in the date range
 	if blankStyle, err = f.NewStyle(&excelize.Style{
 		Border:    []excelize.Border{left, right, bottom},
@@ -311,48 +377,25 @@ func setMonthDataBookingRapat(f *excelize.File, sheet, month string, rowOffset, 
 		fmt.Println(err)
 		return
 	}
-	// set cell border for the blank cell in the date range
+
+	// set cell border for the blank cell in the date range, but only for cells that don't have a fill color
 	for _, r := range []int{5, 7, 9, 11, 13, 15} {
-		if err = f.SetCellStyle(sheet, fmt.Sprintf("%s%d", string('B'+colOffset), r+rowOffset),
-			fmt.Sprintf("%s%d", string('H'+colOffset), r+rowOffset), blankStyle); err != nil {
-			fmt.Println(err)
-			return
+		for c := 0; c < 7; c++ {
+			cellAddr, _ := excelize.JoinCellName(string('B'+colOffset+c), r+rowOffset)
+			if styleID, err := f.GetCellStyle(sheet, cellAddr); err != nil {
+				// Handle error
+				fmt.Println("Error mendapatkan gaya sel:", err)
+				return
+			} else if styleID == 0 {
+				// Jika tidak ada gaya yang diterapkan, maka terapkan blankStyle
+				if err = f.SetCellStyle(sheet, cellAddr, cellAddr, blankStyle); err != nil {
+					fmt.Println("Error menerapkan blankStyle:", err)
+					return
+				}
+			}
 		}
 	}
-	// define the border and fill style for the blank cell in previous and next month
-	if grayBlankStyle, err = f.NewStyle(&excelize.Style{
-		Border:    []excelize.Border{left, right, bottom},
-		Font:      &excelize.Font{Size: 9},
-		Alignment: &excelize.Alignment{WrapText: true},
-		Fill:      fill}); err != nil {
-		fmt.Println(err)
-		return
-	}
-	// set the border and fill style for the blank cell in previous and next month
-	if err = f.SetCellStyle(sheet, fmt.Sprintf("%s%d", string('B'+colOffset), 5+rowOffset), fmt.Sprintf("%s%d", string('F'+colOffset), 5+rowOffset), grayBlankStyle); err != nil {
-		fmt.Println(err)
-		return
-	}
-	if err = f.SetCellStyle(sheet, fmt.Sprintf("%s%d", string('C'+colOffset), 15+rowOffset), fmt.Sprintf("%s%d", string('H'+colOffset), 15+rowOffset), grayBlankStyle); err != nil {
-		fmt.Println(err)
-		return
-	}
-	// define the border and fill style for the date cell in previous and next month
-	if grayDataStyle, err = f.NewStyle(&excelize.Style{
-		Border: []excelize.Border{left, right, top},
-		Font:   &excelize.Font{Color: "777777"}, Fill: fill}); err != nil {
-		fmt.Println(err)
-		return
-	}
-	// set the border and fill style for the date cell in previous and next month
-	if err = f.SetCellStyle(sheet, fmt.Sprintf("%s%d", string('B'+colOffset), 4+rowOffset), fmt.Sprintf("%s%d", string('F'+colOffset), 4+rowOffset), grayDataStyle); err != nil {
-		fmt.Println(err)
-		return
-	}
-	if err = f.SetCellStyle(sheet, fmt.Sprintf("%s%d", string('C'+colOffset), 14+rowOffset), fmt.Sprintf("%s%d", string('H'+colOffset), 14+rowOffset), grayDataStyle); err != nil {
-		fmt.Println(err)
-		return
-	}
+
 	// hide gridlines for the worksheet
 	disable := false
 	if err := f.SetSheetView(sheet, 0, &excelize.ViewOptions{
@@ -361,30 +404,3 @@ func setMonthDataBookingRapat(f *excelize.File, sheet, month string, rowOffset, 
 		fmt.Println(err)
 	}
 }
-
-// func saveConflictRequest(newEvent models.BookingRapat, conflictingEvents []models.BookingRapat) {
-// 	// Logika untuk menyimpan informasi bentrok ke database
-// 	for _, event := range conflictingEvents {
-// 		log.Printf("Bentrok dengan jadwal: %s pada %s", event.Title, event.Start)
-
-// 		// Ambil waktu mulai dan akhir dari event lama
-// 		eventStart, _ := time.Parse("2006-01-02T15:04:05", event.Start)
-// 		eventEnd, _ := time.Parse("2006-01-02T15:04:05", event.End)
-// 		date, _ := time.Parse("2006-01-02", event.Start[:10])
-
-// 		// Contoh penyimpanan ke tabel 'conflict_requests'
-// 		conflictRequest := models.ConflictRequest{
-// 			NewEventID: newEvent.ID,
-// 			OldEventID: event.ID,
-// 			Status:     "pending", // atau status lain yang sesuai
-// 			OldTitle:   event.Title,
-// 			NewTitle:   newEvent.Title,
-// 			StartTime:  eventStart.Format("15:04"), // Format waktu mulai dari event lama
-// 			EndTime:    eventEnd.Format("15:04"),   // Format waktu akhir dari event lama
-// 			Date:       date,
-// 		}
-// 		if err := initializers.DB.Create(&conflictRequest).Error; err != nil {
-// 			log.Printf("Error saving conflict request: %v", err)
-// 		}
-// 	}
-// }

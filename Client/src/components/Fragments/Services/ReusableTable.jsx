@@ -419,7 +419,7 @@ export const ReusableTable = ({
             action="show"
             color="info"
           >
-            <TbEyeSearch />
+            <TbEyeSearch size={20}/>
           </Button>
           {userRole === "admin" && (
             <Button
@@ -451,7 +451,7 @@ export const ReusableTable = ({
                 setSelectedId(data.ID);
                 setIsModalOpen(true);
               }}
-              color="info"
+              color="success"
             >
               <FaUpload />
             </Button>

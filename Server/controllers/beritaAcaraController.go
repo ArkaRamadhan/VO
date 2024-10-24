@@ -23,7 +23,7 @@ import (
 type BcRequest struct {
 	ID       uint    `gorm:"primaryKey"`
 	Tanggal  *string `json:"tanggal"`
-	NoSurat  *string  `json:"no_surat"`
+	NoSurat  *string `json:"no_surat"`
 	Perihal  *string `json:"perihal"`
 	Pic      *string `json:"pic"`
 	CreateBy string  `json:"create_by"`
@@ -283,7 +283,6 @@ func BeritaAcaraUpdate(c *gin.Context) {
 		return
 	}
 
-
 	requestBody.CreateBy = c.MustGet("username").(string)
 	bc.CreateBy = requestBody.CreateBy
 
@@ -349,24 +348,20 @@ func exportBeritaAcaraToExcel(beritaAcaras []models.BeritaAcara) (*excelize.File
 	// Buat file Excel baru
 	f := excelize.NewFile()
 
-	sheetNames := []string{"MEMO", "BERITA ACARA", "SK", "SURAT", "PROJECT", "PERDIN", "SURAT MASUK", "SURAT KELUAR", "ARSIP", "MEETING", "MEETING SCHEDULE"}
+	sheetName := "BERITA ACARA"
+	f.NewSheet(sheetName)
+	// Header untuk SAG (kolom kiri)
+	f.SetCellValue(sheetName, "A1", "Tanggal")
+	f.SetCellValue(sheetName, "B1", "No Surat")
+	f.SetCellValue(sheetName, "C1", "Perihal")
+	f.SetCellValue(sheetName, "D1", "PIC")
 
-	for _, sheetName := range sheetNames {
-		f.NewSheet(sheetName)
-		if sheetName == "BERITA ACARA" {
-			// Header untuk SAG (kolom kiri)
-			f.SetCellValue(sheetName, "A1", "Tanggal")
-			f.SetCellValue(sheetName, "B1", "No Surat")
-			f.SetCellValue(sheetName, "C1", "Perihal")
-			f.SetCellValue(sheetName, "D1", "PIC")
+	// Header untuk ISO (kolom kanan)
+	f.SetCellValue(sheetName, "F1", "Tanggal")
+	f.SetCellValue(sheetName, "G1", "No Surat")
+	f.SetCellValue(sheetName, "H1", "Perihal")
+	f.SetCellValue(sheetName, "I1", "PIC")
 
-			// Header untuk ISO (kolom kanan)
-			f.SetCellValue(sheetName, "F1", "Tanggal")
-			f.SetCellValue(sheetName, "G1", "No Surat")
-			f.SetCellValue(sheetName, "H1", "Perihal")
-			f.SetCellValue(sheetName, "I1", "PIC")
-		}
-	}
 	f.DeleteSheet("Sheet1")
 
 	// Inisialisasi baris awal
@@ -469,7 +464,7 @@ func ExportBeritaAcaraHandler(c *gin.Context) {
 	}
 
 	// Set nama file dan header untuk download
-	fileName := fmt.Sprintf("its_report.xlsx")
+	fileName := fmt.Sprintf("its_report_beritaAcara.xlsx")
 	c.Header("Content-Disposition", "attachment; filename="+fileName)
 	c.Header("Content-Type", "application/octet-stream")
 
@@ -516,8 +511,10 @@ func ImportExcelBeritaAcara(c *gin.Context) {
 
 	log.Println("Processing rows...")
 
-	// Definisikan semua format tanggal yang mungkin
-	dateFormats := []string{
+	// Definisikan format tanggal untuk SAG
+	dateFormatsSAG := []string{
+		"02-Jan-06",
+		"06-Jan-02",
 		"2 January 2006",
 		"2006-01-02",
 		"02-01-2006",
@@ -530,105 +527,120 @@ func ImportExcelBeritaAcara(c *gin.Context) {
 		"02/01/06",
 		"06/02/01",
 		"06/01/02",
+		"1-Jan-06",
+	}
+
+	// Definisikan format tanggal untuk ISO
+	dateFormatsISO := []string{
 		"06-Jan-02",
+		"02-Jan-06",
+		"2 January 2006",
+		"2006-01-02",
+		"02-01-2006",
+		"01/02/2006",
+		"2006.01.02",
+		"02/01/2006",
+		"Jan 2, 06",
+		"Jan 2, 2006",
+		"01/02/06",
+		"02/01/06",
+		"06/02/01",
+		"06/01/02",
+		"1-Jan-06",
 	}
 
 	for i, row := range rows {
 		if i == 0 { // Lewati baris pertama yang merupakan header
 			continue
 		}
-		if len(row) < 4 { // Pastikan ada cukup kolom
-			log.Printf("Row %d skipped: less than 4 columns filled", i+1)
+		// Pastikan minimal 2 kolom terisi
+		nonEmptyColumns := 0
+		for _, col := range row {
+			if col != "" {
+				nonEmptyColumns++
+			}
+		}
+		if nonEmptyColumns < 2 {
+			log.Printf("Baris %d dilewati: hanya %d kolom terisi", i+1, nonEmptyColumns)
 			continue
 		}
 
-		// Ambil data dari kolom SAG (kiri)
-		tanggalSAGStr := row[0]
-		noSuratSAG := row[1]
-		perihalSAG := row[2]
-		picSAG := row[3]
+		// Ambil data SAG dari kolom kiri
+		tanggalSAGStr, noSuratSAG, perihalSAG, picSAG := "", "", "", ""
+		if len(row) > 0 {
+			tanggalSAGStr = row[0]
+		}
+		if len(row) > 1 {
+			noSuratSAG = row[1]
+		}
+		if len(row) > 2 {
+			perihalSAG = row[2]
+		}
+		if len(row) > 3 {
+			picSAG = row[3]
+		}
 
-		var tanggalSAG time.Time
-		var parseErr error
+		// Ambil data ISO dari kolom kanan
+		tanggalISOStr, noSuratISO, perihalISO, picISO := "", "", "", ""
+		if len(row) > 5 {
+			tanggalISOStr = row[5]
+		}
+		if len(row) > 6 {
+			noSuratISO = row[6]
+		}
+		if len(row) > 7 {
+			perihalISO = row[7]
+		}
+		if len(row) > 8 {
+			picISO = row[8]
+		}
 
-		// Coba konversi dari serial Excel jika tanggalSAGStr adalah angka
-		if serial, err := strconv.Atoi(tanggalSAGStr); err == nil {
-			tanggalSAG, parseErr = excelDateToTimeMemo(serial)
-		} else {
-			// Coba parse menggunakan format tanggal yang sudah ada
-			for _, format := range dateFormats {
-				tanggalSAG, parseErr = time.Parse(format, tanggalSAGStr)
-				if parseErr == nil {
-					break // Keluar dari loop jika parsing berhasil
+		// Proses tanggal SAG
+		var tanggalSAG *time.Time
+		if tanggalSAGStr != "" {
+			for _, format := range dateFormatsSAG {
+				parsedTanggal, err := time.Parse(format, tanggalSAGStr)
+				if err == nil {
+					tanggalSAG = &parsedTanggal
+					break
 				}
 			}
 		}
 
-		if parseErr != nil {
-			log.Printf("Format tanggal tidak valid di baris %d: %v", i+1, parseErr)
-			continue // Lewati baris ini jika format tanggal tidak valid
+		// Proses tanggal ISO
+		var tanggalISO *time.Time
+		if tanggalISOStr != "" {
+			for _, format := range dateFormatsISO {
+				parsedTanggal, err := time.Parse(format, tanggalISOStr)
+				if err == nil {
+					tanggalISO = &parsedTanggal
+					break
+				}
+			}
 		}
 
+		// Simpan data SAG
 		beritaAcaraSAG := models.BeritaAcara{
-			Tanggal:  &tanggalSAG,
+			Tanggal:  tanggalSAG,
 			NoSurat:  &noSuratSAG,
 			Perihal:  &perihalSAG,
 			Pic:      &picSAG,
 			CreateBy: c.MustGet("username").(string),
 		}
-
 		if err := initializers.DB.Create(&beritaAcaraSAG).Error; err != nil {
 			log.Printf("Error saving SAG record from row %d: %v", i+1, err)
 		} else {
 			log.Printf("SAG Row %d imported successfully", i+1)
 		}
-	}
 
-	// Proses data ISO
-	for i, row := range rows {
-		if i == 0 {
-			continue
-		}
-		if len(row) < 8 { // Pastikan ada cukup kolom untuk ISO
-			log.Printf("Row %d skipped: less than 8 columns filled", i+1)
-			continue
-		}
-
-		// Ambil data dari kolom ISO (kanan)
-		tanggalISOStr := row[5]
-		noSuratISO := row[6]
-		perihalISO := row[7]
-		picISO := row[8]
-
-		var tanggalISO time.Time
-		var parseErr error
-
-		// Coba konversi dari serial Excel jika tanggalISOStr adalah angka
-		if serial, err := strconv.Atoi(tanggalISOStr); err == nil {
-			tanggalISO, parseErr = excelDateToTimeMemo(serial)
-		} else {
-			// Coba parse menggunakan format tanggal yang sudah ada
-			for _, format := range dateFormats {
-				tanggalISO, parseErr = time.Parse(format, tanggalISOStr)
-				if parseErr == nil {
-					break // Keluar dari loop jika parsing berhasil
-				}
-			}
-		}
-
-		if parseErr != nil {
-			log.Printf("Format tanggal tidak valid di baris %d: %v", i+1, parseErr)
-			continue // Lewati baris ini jika format tanggal tidak valid
-		}
-
+		// Simpan data ISO
 		beritaAcaraISO := models.BeritaAcara{
-			Tanggal:  &tanggalISO,
+			Tanggal:  tanggalISO,
 			NoSurat:  &noSuratISO,
 			Perihal:  &perihalISO,
 			Pic:      &picISO,
 			CreateBy: c.MustGet("username").(string),
 		}
-
 		if err := initializers.DB.Create(&beritaAcaraISO).Error; err != nil {
 			log.Printf("Error saving ISO record from row %d: %v", i+1, err)
 		} else {

@@ -8,7 +8,7 @@ import { FiUsers } from "react-icons/fi";
 import { BiLogOut } from "react-icons/bi";
 import { Dropdown } from "flowbite-react";
 import { VscGitPullRequestGoToChanges } from "react-icons/vsc";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   GetNotification,
   deleteNotification,
@@ -39,6 +39,61 @@ const App = ({ services, children }) => {
   });
 
   const [selectedNotifications, setSelectedNotifications] = useState([]);
+
+  // State untuk menyimpan waktu event
+  const [eventTime, setEventTime] = useState(null);
+
+  const eventTimeRef = useRef(null);
+
+  useEffect(() => {
+    if (eventTime) {
+      eventTimeRef.current = eventTime;
+    }
+  }, [eventTime]);
+
+  useEffect(() => {
+    const checkEventTime = () => {
+      const now = new Date();
+      const oneHourBeforeEvent = new Date(eventTimeRef.current.getTime() - 60 * 60 * 1000);
+
+      console.log("Waktu saat ini:", now); // Log waktu saat ini
+      console.log("Satu jam sebelum event:", oneHourBeforeEvent); // Log waktu satu jam sebelum event
+
+      if (now >= oneHourBeforeEvent && now <= eventTimeRef.current) {
+        console.log("Menampilkan notifikasi untuk event."); // Log ketika kondisi untuk menampilkan notifikasi terpenuhi
+        Swal.fire({
+          title: 'Pengingat Event',
+          text: 'Event Anda akan dimulai dalam satu jam!',
+          icon: 'info',
+          confirmButtonText: 'Baik'
+        }).then((result) => {
+          if (result.isConfirmed) {
+            // Hapus notifikasi setelah konfirmasi
+            setNotification((prevData) => {
+              const updatedNotifications = { ...prevData };
+              Object.keys(updatedNotifications).forEach((category) => {
+                updatedNotifications[category] = updatedNotifications[category].filter(
+                  (event) => event.start !== eventTimeRef.current
+                );
+              });
+              return updatedNotifications;
+            });
+          }
+        });
+      } else {
+        console.log("Notifikasi tidak ditampilkan."); // Log ketika notifikasi tidak ditampilkan
+      }
+    };
+
+    const timer = setInterval(() => {
+      checkEventTime();
+    }, 60000); // Periksa setiap menit
+
+    return () => {
+      console.log("Membersihkan timer."); // Log ketika membersihkan timer
+      clearInterval(timer);
+    };
+  }, []); // useEffect ini tidak memiliki dependensi dan hanya di-set sekali
 
   const handleFilterChange = (category) => {
     setFilter((prevFilter) => ({
@@ -71,53 +126,32 @@ const App = ({ services, children }) => {
     }
   };
 
-  // Fetch events
+  // Fetch events dan set waktu event
   useEffect(() => {
-    let prevNotificationIds = new Set();
-
     const fetchNotifications = () => {
-      GetNotification((data) => {
-        const groupedNotifications = {
-          JadwalCuti: [],
-          JadwalRapat: [],
-          BookingRapat: [],
-          TimelineWallpaperDesktop: [],
-          TimelineProject: [],
-        };
-
-        let newCategories = new Set();
-
-        data.forEach((event) => {
-          if (groupedNotifications[event.category]) {
-            groupedNotifications[event.category].push(event);
-            if (!prevNotificationIds.has(event.id)) {
-              newCategories.add(event.category);
-              prevNotificationIds.add(event.id);
-            }
-          }
+        GetNotification((data) => {
+            const groupedNotifications = {
+                JadwalCuti: [],
+                JadwalRapat: [],
+                BookingRapat: [],
+                TimelineWallpaperDesktop: [],
+                TimelineProject: [],
+            };
+            data.forEach((event) => {
+                if (groupedNotifications[event.category]) {
+                    groupedNotifications[event.category].push(event);
+                }
+                // Misalnya, set waktu event untuk event pertama
+                if (event.category === 'JadwalRapat') {
+                    setEventTime(new Date(event.start)); // Asumsi 'start' adalah waktu mulai event
+                }
+            });
+            setNotification(groupedNotifications);
         });
-
-        setNotification(groupedNotifications);
-
-        if (newCategories.size > 0) {
-          let notificationList = Array.from(newCategories);
-
-          Swal.fire({
-            title: "Notifikasi Baru!",
-            html: `Anda memiliki notifikasi baru di kategori:<br><br>${notificationList.join(', ')}`,
-            icon: "info",
-            toast: true,
-            position: "top",
-            showConfirmButton: false,
-            timer: 5000,
-            timerProgressBar: true,
-          });
-        }
-      });
     };
 
     fetchNotifications();
-    const intervalId = setInterval(fetchNotifications, 60000); // Periksa setiap 1 menit
+    const intervalId = setInterval(fetchNotifications, 60000); // Refresh setiap 1 menit
 
     return () => clearInterval(intervalId);
   }, []);
@@ -167,7 +201,7 @@ const App = ({ services, children }) => {
     setSelectedNotifications((prevSelected) =>
       allIds.every((id) => prevSelected.includes(id))
         ? prevSelected.filter((id) => !allIds.includes(id))
-        : [...prevSelected, ...allIds.filter((id) => !prevSelected.includes(id))]
+        : [...prevSelected, ...allIds.filter((id) => !prevSelected.includes(id))] 
     );
   };
 

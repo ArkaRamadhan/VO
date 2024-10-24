@@ -243,7 +243,7 @@ func MemoCreate(c *gin.Context) {
 	requestBody.CreateBy = c.MustGet("username").(string)
 
 	memosag := models.Memo{
-		Tanggal:  tanggal,           
+		Tanggal:  tanggal,
 		NoMemo:   requestBody.NoMemo, // Menggunakan NoMemo yang sudah diformat
 		Perihal:  requestBody.Perihal,
 		Pic:      requestBody.Pic,
@@ -383,24 +383,20 @@ func exportMemoToExcel(memos []models.Memo) (*excelize.File, error) {
 	// Buat file Excel baru
 	f := excelize.NewFile()
 
-	sheetNames := []string{"MEMO", "BERITA ACARA", "SK", "SURAT", "PROJECT", "PERDIN", "SURAT MASUK", "SURAT KELUAR", "ARSIP", "MEETING", "MEETING SCHEDULE"}
+	sheetName := "MEMO"
+	f.NewSheet(sheetName)
+	// Header untuk SAG (kolom kiri)
+	f.SetCellValue(sheetName, "A1", "Tanggal")
+	f.SetCellValue(sheetName, "B1", "No Surat")
+	f.SetCellValue(sheetName, "C1", "Perihal")
+	f.SetCellValue(sheetName, "D1", "PIC")
 
-	for _, sheetName := range sheetNames {
-		f.NewSheet(sheetName)
-		if sheetName == "MEMO" {
-			// Header untuk SAG (kolom kiri)
-			f.SetCellValue(sheetName, "A1", "Tanggal")
-			f.SetCellValue(sheetName, "B1", "No Surat")
-			f.SetCellValue(sheetName, "C1", "Perihal")
-			f.SetCellValue(sheetName, "D1", "PIC")
+	// Header untuk ISO (kolom kanan)
+	f.SetCellValue(sheetName, "F1", "Tanggal")
+	f.SetCellValue(sheetName, "G1", "No Surat")
+	f.SetCellValue(sheetName, "H1", "Perihal")
+	f.SetCellValue(sheetName, "I1", "PIC")
 
-			// Header untuk ISO (kolom kanan)
-			f.SetCellValue(sheetName, "F1", "Tanggal")
-			f.SetCellValue(sheetName, "G1", "No Surat")
-			f.SetCellValue(sheetName, "H1", "Perihal")
-			f.SetCellValue(sheetName, "I1", "PIC")
-		}
-	}
 	f.DeleteSheet("Sheet1")
 
 	// Inisialisasi baris awal
@@ -503,73 +499,13 @@ func ExportMemoHandler(c *gin.Context) {
 	}
 
 	// Set nama file dan header untuk download
-	fileName := fmt.Sprintf("its_report.xlsx")
+	fileName := fmt.Sprintf("its_report_memo.xlsx")
 	c.Header("Content-Disposition", "attachment; filename="+fileName)
 	c.Header("Content-Type", "application/octet-stream")
 
 	// Simpan file Excel ke dalam buffer
 	if err := f.Write(c.Writer); err != nil {
 		c.String(http.StatusInternalServerError, "Gagal menyimpan file Excel")
-	}
-}
-
-func UpdateSheetMemo(c *gin.Context) {
-	dir := "C:\\excel"
-	fileName := "its_report.xlsx"
-	filePath := filepath.Join(dir, fileName)
-
-	// Check if the file exists
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		c.String(http.StatusBadRequest, "File tidak ada")
-		return
-	}
-
-	// Open the existing Excel file
-	f, err := excelize.OpenFile(filePath)
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Error membuka file: %v", err)
-		return
-	}
-	defer f.Close()
-
-	// Define sheet name
-	sheetName := "MEMO"
-
-	// Check if the sheet exists
-	sheetIndex, err := f.GetSheetIndex(sheetName)
-	if err != nil || sheetIndex == -1 {
-		c.String(http.StatusBadRequest, "Lembar kerja MEMO tidak ditemukan")
-		return
-	}
-
-	// Clear existing data except the header by deleting rows
-	rows, err := f.GetRows(sheetName)
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Error getting rows: %v", err)
-		return
-	}
-	for i := 1; i < len(rows); i++ { // Start from 1 to keep the header
-		f.RemoveRow(sheetName, 2) // Always remove the second row since the sheet compresses up
-	}
-
-	// Fetch updated data from the database
-	var memos []models.Memo
-	initializers.DB.Find(&memos)
-
-	// Write data rows
-	for i, memo := range memos {
-		rowNum := i + 2 // Start from the second row (first row is header)
-		f.SetCellValue(sheetName, fmt.Sprintf("A%d", rowNum), memo.Tanggal.Format("2006-01-02"))
-		f.SetCellValue(sheetName, fmt.Sprintf("B%d", rowNum), memo.NoMemo)
-		f.SetCellValue(sheetName, fmt.Sprintf("C%d", rowNum), memo.Perihal)
-		// f.SetCellValue(sheetName, fmt.Sprintf("D%d", rowNum), memo.Kategori)
-		f.SetCellValue(sheetName, fmt.Sprintf("E%d", rowNum), memo.Pic)
-	}
-
-	// Save the file with updated data
-	if err := f.SaveAs(filePath); err != nil {
-		c.String(http.StatusInternalServerError, "Error menyimpan file: %v", err)
-		return
 	}
 }
 
@@ -618,6 +554,12 @@ func ImportExcelMemo(c *gin.Context) {
 
 	// Definisikan semua format tanggal yang mungkin
 	dateFormats := []string{
+		"02-Jan-06",
+		"02 Jan 06",
+		"02-01-06",
+		"02/01/2006",
+		"01-02-2006",
+		"06-Jan-02",
 		"2 January 2006",
 		"2006-01-02",
 		"02-01-2006",
@@ -630,109 +572,72 @@ func ImportExcelMemo(c *gin.Context) {
 		"02/01/06",
 		"06/02/01",
 		"06/01/02",
-		"06-Jan-02",
+		"1-Jan-06",
 	}
 
 	for i, row := range rows {
 		if i == 0 { // Lewati baris pertama yang merupakan header
 			continue
 		}
-		if len(row) < 4 { // Pastikan ada cukup kolom
-			log.Printf("Row %d skipped: less than 4 columns filled", i+1)
+		// Pastikan minimal 4 kolom terisi
+		nonEmptyColumns := 0
+		for _, col := range row {
+			if col != "" {
+				nonEmptyColumns++
+			}
+		}
+		if nonEmptyColumns < 2 {
+			log.Printf("Baris %d dilewati: hanya %d kolom terisi", i+1, nonEmptyColumns)
 			continue
 		}
 
-		// Ambil data dari kolom SAG (kiri)
-		tanggalSAGStr := row[0]
-		noMemoSAG := row[1]
-		perihalSAG := row[2]
-		picSAG := row[3]
+		// Ambil data dari kolom dengan penanganan jika kolom kosong
+		tanggalStr := ""
+		if len(row) > 0 {
+			tanggalStr = row[0]
+		}
+		noMemo := ""
+		if len(row) > 1 {
+			noMemo = row[1]
+		}
+		perihal := ""
+		if len(row) > 2 {
+			perihal = row[2]
+		}
+		pic := ""
+		if len(row) > 3 {
+			pic = row[3]
+		}
 
-		var tanggalSAG time.Time
+		var tanggal *time.Time
 		var parseErr error
-
-		// Coba konversi dari serial Excel jika tanggalSAGStr adalah angka
-		if serial, err := strconv.Atoi(tanggalSAGStr); err == nil {
-			tanggalSAG, parseErr = excelDateToTimeMemo(serial)
-		} else {
+		if tanggalStr != "" {
 			// Coba parse menggunakan format tanggal yang sudah ada
 			for _, format := range dateFormats {
-				tanggalSAG, parseErr = time.Parse(format, tanggalSAGStr)
+				var parsedTanggal time.Time
+				parsedTanggal, parseErr = time.Parse(format, tanggalStr)
 				if parseErr == nil {
+					tanggal = &parsedTanggal
 					break // Keluar dari loop jika parsing berhasil
 				}
 			}
-		}
-
-		if parseErr != nil {
-			log.Printf("Format tanggal tidak valid di baris %d: %v", i+1, parseErr)
-			continue // Lewati baris ini jika format tanggal tidak valid
-		}
-
-		memoSAG := models.Memo{
-			Tanggal:  &tanggalSAG,
-			NoMemo:   &noMemoSAG,
-			Perihal:  &perihalSAG,
-			Pic:      &picSAG,
-			CreateBy: c.MustGet("username").(string),
-		}
-
-		if err := initializers.DB.Create(&memoSAG).Error; err != nil {
-			log.Printf("Error saving SAG record from row %d: %v", i+1, err)
-		} else {
-			log.Printf("SAG Row %d imported successfully", i+1)
-		}
-	}
-
-	// Proses data ISO
-	for i, row := range rows {
-		if i == 0 {
-			continue
-		}
-		if len(row) < 8 { // Pastikan ada cukup kolom untuk ISO
-			log.Printf("Row %d skipped: less than 8 columns filled", i+1)
-			continue
-		}
-
-		// Ambil data dari kolom ISO (kanan)
-		tanggalISOStr := row[5]
-		noMemoISO := row[6]
-		perihalISO := row[7]
-		picISO := row[8]
-
-		var tanggalISO time.Time
-		var parseErr error
-
-		// Coba konversi dari serial Excel jika tanggalISOStr adalah angka
-		if serial, err := strconv.Atoi(tanggalISOStr); err == nil {
-			tanggalISO, parseErr = excelDateToTimeMemo(serial)
-		} else {
-			// Coba parse menggunakan format tanggal yang sudah ada
-			for _, format := range dateFormats {
-				tanggalISO, parseErr = time.Parse(format, tanggalISOStr)
-				if parseErr == nil {
-					break // Keluar dari loop jika parsing berhasil
-				}
+			if parseErr != nil {
+				log.Printf("Format tanggal tidak valid di baris %d: %v", i+1, parseErr)
 			}
 		}
 
-		if parseErr != nil {
-			log.Printf("Format tanggal tidak valid di baris %d: %v", i+1, parseErr)
-			continue // Lewati baris ini jika format tanggal tidak valid
-		}
-
-		memoISO := models.Memo{
-			Tanggal:  &tanggalISO,
-			NoMemo:   &noMemoISO,
-			Perihal:  &perihalISO,
-			Pic:      &picISO,
+		memo := models.Memo{
+			Tanggal:  tanggal,
+			NoMemo:   &noMemo,
+			Perihal:  &perihal,
+			Pic:      &pic,
 			CreateBy: c.MustGet("username").(string),
 		}
 
-		if err := initializers.DB.Create(&memoISO).Error; err != nil {
-			log.Printf("Error saving ISO record from row %d: %v", i+1, err)
+		if err := initializers.DB.Create(&memo).Error; err != nil {
+			log.Printf("Error saving memo record from row %d: %v", i+1, err)
 		} else {
-			log.Printf("ISO Row %d imported successfully", i+1)
+			log.Printf("Memo Row %d imported successfully", i+1)
 		}
 	}
 

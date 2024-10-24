@@ -278,7 +278,7 @@ func SuratKeluarUpdate(c *gin.Context) {
 		surat_keluar.Pic = surat_keluar.Pic // gunakan nilai yang ada dari database
 	}
 
-		if requestBody.CreateBy != "" {
+	if requestBody.CreateBy != "" {
 		surat_keluar.CreateBy = requestBody.CreateBy
 	} else {
 		surat_keluar.CreateBy = surat_keluar.CreateBy // gunakan nilai yang ada dari database
@@ -317,7 +317,7 @@ func SuratKeluarDelete(c *gin.Context) {
 
 func CreateExcelSuratKeluar(c *gin.Context) {
 	dir := "C:\\excel"
-	baseFileName := "its_report"
+	baseFileName := "its_report_suratkeluar"
 	filePath := filepath.Join(dir, baseFileName+".xlsx")
 
 	// Check if the file already exists
@@ -332,56 +332,50 @@ func CreateExcelSuratKeluar(c *gin.Context) {
 	f := excelize.NewFile()
 
 	// Define sheet names
-	sheetNames := []string{"MEMO", "PROJECT", "PERDIN", "SURAT MASUK", "SURAT KELUAR", "ARSIP", "MEETING", "MEETING SCHEDULE"}
+	sheetName := "SURAT KELUAR"
 
 	// Create sheets and set headers for "SAG" only
-	for _, sheetName := range sheetNames {
-		if sheetName == "SURAT KELUAR" {
-			f.NewSheet(sheetName)
-			f.SetCellValue(sheetName, "A1", "No Surat")
-			f.SetCellValue(sheetName, "B1", "Title Of Letter")
-			f.SetCellValue(sheetName, "C1", "From")
-			f.SetCellValue(sheetName, "D1", "Pic")
-			f.SetCellValue(sheetName, "E1", "Date Issue")
+	f.NewSheet(sheetName)
+	f.SetCellValue(sheetName, "A1", "No Surat")
+	f.SetCellValue(sheetName, "B1", "Title Of Letter")
+	f.SetCellValue(sheetName, "C1", "From")
+	f.SetCellValue(sheetName, "D1", "Pic")
+	f.SetCellValue(sheetName, "E1", "Date Issue")
 
-			styleHeader, err := f.NewStyle(&excelize.Style{
-				Fill: excelize.Fill{
-					Type:    "pattern",
-					Color:   []string{"#4F81BD"},
-					Pattern: 1,
-				},
-				Font: &excelize.Font{
-					Bold:   true,
-					Size:   12,
-					Color:  "FFFFFF",
-				},
-				Border: []excelize.Border{
-					{Type: "left", Color: "000000", Style: 1},
-					{Type: "top", Color: "000000", Style: 1},
-					{Type: "bottom", Color: "000000", Style: 1},
-					{Type: "right", Color: "000000", Style: 1},
-				},
-				Alignment: &excelize.Alignment{
-					Horizontal: "center",
-					Vertical:   "center",
-				},
-			})
-			if err != nil {
-				fmt.Println(err)
-			}
-
-			f.SetCellStyle(sheetName, "A1", "E1", styleHeader)
-
-			f.SetColWidth(sheetName, "A", "A", 27)
-			f.SetColWidth(sheetName, "B", "B", 40)
-			f.SetColWidth(sheetName, "C", "C", 20)
-			f.SetColWidth(sheetName, "D", "D", 20)
-			f.SetColWidth(sheetName, "E", "E", 20)
-			f.SetRowHeight(sheetName, 1, 20)
-		} else {
-			f.NewSheet(sheetName)
-		}
+	styleHeader, err := f.NewStyle(&excelize.Style{
+		Fill: excelize.Fill{
+			Type:    "pattern",
+			Color:   []string{"#4F81BD"},
+			Pattern: 1,
+		},
+		Font: &excelize.Font{
+			Bold:  true,
+			Size:  12,
+			Color: "FFFFFF",
+		},
+		Border: []excelize.Border{
+			{Type: "left", Color: "000000", Style: 1},
+			{Type: "top", Color: "000000", Style: 1},
+			{Type: "bottom", Color: "000000", Style: 1},
+			{Type: "right", Color: "000000", Style: 1},
+		},
+		Alignment: &excelize.Alignment{
+			Horizontal: "center",
+			Vertical:   "center",
+		},
+	})
+	if err != nil {
+		fmt.Println(err)
 	}
+
+	f.SetCellStyle(sheetName, "A1", "E1", styleHeader)
+
+	f.SetColWidth(sheetName, "A", "A", 27)
+	f.SetColWidth(sheetName, "B", "B", 40)
+	f.SetColWidth(sheetName, "C", "C", 20)
+	f.SetColWidth(sheetName, "D", "D", 20)
+	f.SetColWidth(sheetName, "E", "E", 20)
+	f.SetRowHeight(sheetName, 1, 20)
 
 	// Fetch initial data from the database
 	var surat_keluars []models.SuratKeluar
@@ -429,62 +423,6 @@ func CreateExcelSuratKeluar(c *gin.Context) {
 	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", fileName))
 	c.Writer.Write(buf.Bytes())
-}
-
-func UpdateSheetSuratKeluar(c *gin.Context) {
-	dir := "C:\\excel"
-	fileName := "its_report.xlsx"
-	filePath := filepath.Join(dir, fileName)
-
-	// Check if the file exists
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		c.String(http.StatusBadRequest, "File tidak ada")
-		return
-	}
-
-	// Open the existing Excel file
-	f, err := excelize.OpenFile(filePath)
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Error membuka file: %v", err)
-		return
-	}
-	defer f.Close()
-
-	// Define sheet name
-	sheetName := "SURAT KELUAR"
-
-	// Check if sheet exists and delete it if it does
-	if _, err := f.GetSheetIndex(sheetName); err == nil {
-		f.DeleteSheet(sheetName)
-	}
-	f.NewSheet(sheetName)
-
-	// Write header row
-	f.SetCellValue(sheetName, "A1", "No Surat")
-	f.SetCellValue(sheetName, "B1", "Title")
-	f.SetCellValue(sheetName, "C1", "From")
-	f.SetCellValue(sheetName, "D1", "Pic")
-	f.SetCellValue(sheetName, "E1", "Tanggal")
-
-	// Fetch updated data from the database
-	var surat_keluars []models.SuratKeluar
-	initializers.DB.Find(&surat_keluars)
-
-	// Write data rows
-	for i, surat_keluar := range surat_keluars {
-		rowNum := i + 2 // Start from the second row (first row is header)
-		f.SetCellValue(sheetName, fmt.Sprintf("A%d", rowNum), surat_keluar.NoSurat)
-		f.SetCellValue(sheetName, fmt.Sprintf("B%d", rowNum), surat_keluar.Title)
-		f.SetCellValue(sheetName, fmt.Sprintf("C%d", rowNum), surat_keluar.From)
-		f.SetCellValue(sheetName, fmt.Sprintf("D%d", rowNum), surat_keluar.Pic)
-		f.SetCellValue(sheetName, fmt.Sprintf("E%d", rowNum), surat_keluar.Tanggal.Format("2006-01-02"))
-	}
-
-	if err := f.SaveAs(filePath); err != nil {
-		c.String(http.StatusInternalServerError, "Error saving file: %v", err)
-		return
-	}
-
 }
 
 func excelDateToTimeSuratKeluar(excelDate int) (time.Time, error) {
@@ -542,11 +480,22 @@ func ImportExcelSuratKeluar(c *gin.Context) {
 	// Definisikan semua format tanggal yang mungkin
 	dateFormats := []string{
 		"2 January 2006",
+		"02-Jan-06",
 		"2006-01-02",
 		"02-01-2006",
 		"01/02/2006",
 		"2006.01.02",
 		"02/01/2006",
+		"Jan 2, 06",
+		"Jan 2, 2006",
+		"01/02/06",
+		"02/01/06",
+		"06/02/01",
+		"06/01/02",
+		"06-Jan-02",
+		"02-Jan-06",
+		"1-Jan-06",
+		"06-Jan-02",
 	}
 
 	// Loop melalui baris dan simpan ke database

@@ -336,7 +336,7 @@ func MeetingDelete(c *gin.Context) {
 
 func CreateExcelMeeting(c *gin.Context) {
 	dir := "C:\\excel"
-	baseFileName := "its_report"
+	baseFileName := "its_report_meeting"
 	filePath := filepath.Join(dir, baseFileName+".xlsx")
 
 	// Check if the file already exists
@@ -351,23 +351,19 @@ func CreateExcelMeeting(c *gin.Context) {
 	f := excelize.NewFile()
 
 	// Define sheet names
-	sheetNames := []string{"MEMO", "BERITA ACARA", "SK", "SURAT", "PROJECT", "PERDIN", "SURAT MASUK", "SURAT KELUAR", "ARSIP", "MEETING", "MEETING SCHEDULE"}
+	sheetName := "MEETING"
 
 	// Create sheets and set headers for "MEETING" only
-	for _, sheetName := range sheetNames {
-		if sheetName == "MEETING" {
-			f.NewSheet(sheetName)
-			f.SetCellValue(sheetName, "A1", "TASK")
-			f.SetCellValue(sheetName, "B1", "TINDAK LANJUT")
-			f.SetCellValue(sheetName, "C1", "STATUS")
-			f.SetCellValue(sheetName, "D1", "UPDATE PENGERJAAN")
-			f.SetCellValue(sheetName, "E1", "PIC")
-			f.SetCellValue(sheetName, "F1", "TANGGAL TARGET")
-			f.SetCellValue(sheetName, "G1", "TANGGAL ACTUAL")
+	if sheetName == "MEETING" {
+		f.NewSheet(sheetName)
+		f.SetCellValue(sheetName, "A1", "TASK")
+		f.SetCellValue(sheetName, "B1", "TINDAK LANJUT")
+		f.SetCellValue(sheetName, "C1", "STATUS")
+		f.SetCellValue(sheetName, "D1", "UPDATE PENGERJAAN")
+		f.SetCellValue(sheetName, "E1", "PIC")
+		f.SetCellValue(sheetName, "F1", "TANGGAL TARGET")
+		f.SetCellValue(sheetName, "G1", "TANGGAL ACTUAL")
 
-		} else {
-			f.NewSheet(sheetName)
-		}
 	}
 
 	f.SetColWidth("MEETING", "A", "A", 25)
@@ -450,7 +446,7 @@ func CreateExcelMeeting(c *gin.Context) {
 			styleID, err = f.NewStyle(&excelize.Style{
 				Font: &excelize.Font{
 					Color: "000000",
-					Bold: true,
+					Bold:  true,
 				},
 				Fill: excelize.Fill{
 					Type:    "pattern",
@@ -472,7 +468,7 @@ func CreateExcelMeeting(c *gin.Context) {
 			styleID, err = f.NewStyle(&excelize.Style{
 				Font: &excelize.Font{
 					Color: "000000",
-					Bold: true,
+					Bold:  true,
 				},
 				Fill: excelize.Fill{
 					Type:    "pattern",
@@ -494,7 +490,7 @@ func CreateExcelMeeting(c *gin.Context) {
 			styleID, err = f.NewStyle(&excelize.Style{
 				Font: &excelize.Font{
 					Color: "000000",
-					Bold: true,
+					Bold:  true,
 				},
 				Fill: excelize.Fill{
 					Type:    "pattern",
@@ -595,73 +591,6 @@ func max(lengths ...int) int {
 		}
 	}
 	return maxLength
-}
-
-func UpdateSheetMeeting(c *gin.Context) {
-	dir := "C:\\excel"
-	fileName := "its_report.xlsx"
-	filePath := filepath.Join(dir, fileName)
-
-	// Check if the file exists
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		c.String(http.StatusBadRequest, "File tidak ada")
-		return
-	}
-
-	// Open the existing Excel file
-	f, err := excelize.OpenFile(filePath)
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Error membuka file: %v", err)
-		return
-	}
-	defer f.Close()
-
-	// Define sheet name
-	sheetName := "MEETING"
-
-	// Check if the sheet exists
-	sheetIndex, err := f.GetSheetIndex(sheetName)
-	if err != nil || sheetIndex == -1 {
-		c.String(http.StatusBadRequest, "Lembar kerja MEETING tidak ditemukan")
-		return
-	}
-
-	// Clear existing data except the header by deleting rows
-	rows, err := f.GetRows(sheetName)
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Error getting rows: %v", err)
-		return
-	}
-	for i := 1; i < len(rows); i++ { // Start from 1 to keep the header
-		f.RemoveRow(sheetName, 2) // Always remove the second row since the sheet compresses up
-	}
-
-	// Fetch updated data from the database
-	var meetings []models.Meeting
-	initializers.DB.Find(&meetings)
-
-	// Write data rows
-	for i, meeting := range meetings {
-		rowNum := i + 2 // Start from the second row (first row is header)
-		f.SetCellValue(sheetName, fmt.Sprintf("A%d", rowNum), meeting.Task)
-		f.SetCellValue(sheetName, fmt.Sprintf("B%d", rowNum), meeting.TindakLanjut)
-		f.SetCellValue(sheetName, fmt.Sprintf("C%d", rowNum), meeting.Status)
-		if meeting.UpdatePengerjaan != nil {
-			f.SetCellValue(sheetName, fmt.Sprintf("D%d", rowNum), *meeting.UpdatePengerjaan)
-		} else {
-			f.SetCellValue(sheetName, fmt.Sprintf("D%d", rowNum), "")
-		}
-		f.SetCellValue(sheetName, fmt.Sprintf("E%d", rowNum), meeting.Pic)
-		f.SetCellValue(sheetName, fmt.Sprintf("F%d", rowNum), meeting.TanggalTarget.Format("2006-01-02"))
-		f.SetCellValue(sheetName, fmt.Sprintf("G%d", rowNum), meeting.TanggalActual.Format("2006-01-02"))
-	}
-
-	// Save the file with updated data
-	if err := f.SaveAs(filePath); err != nil {
-		c.String(http.StatusInternalServerError, "Error menyimpan file: %v", err)
-		return
-	}
-
 }
 
 func ImportExcelMeeting(c *gin.Context) {

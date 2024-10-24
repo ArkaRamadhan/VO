@@ -106,37 +106,43 @@ export const RequestPage = () => {
     return (
         <App services={formConfig.services}>
             <div style={{ display: "flex", flexWrap: "wrap" }}>
-                {Array.isArray(conflictRequests) && conflictRequests.map((conflict, index) => {
-                    console.log("Rendering conflict:", conflict); // Tambahkan log ini
-                    return (
-                        <div key={index} style={{
-                            border: "1px solid #ccc",
-                            padding: "20px",
-                            borderRadius: "8px",
-                            marginBottom: "20px",
-                            width: "calc(50% - 20px)", // Setengah layar dengan margin
-                            marginRight: index % 2 === 0 ? "20px" : "0" // Tambahkan margin kanan untuk card di sebelah kiri
-                        }}>
-                            <h3>Data Bentrok</h3>
-                            <p>
-                                Jadwal rapat <strong>{conflict.title}</strong> bentrok pada tanggal <strong>{conflict.start}</strong>
-                            </p>
-                            <button
-                                onClick={() => handleAccept(conflict.id)} // Pass ID to handleAccept
-                                style={{ marginRight: "10px" }}
-                                className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm w-auto px-5 py-2.5 text-center mt-2"
-                            >
-                                Acc
-                            </button>
-                            <button
-                                onClick={() => handleCancel(conflict.id)} // Pass ID to handleCancel
-                                className="text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-red-300 font-medium rounded-lg text-sm w-auto px-5 py-2.5 text-center mt-2"
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    );
-                })}
+                {Array.isArray(conflictRequests) && conflictRequests.length > 0 ? (
+                    conflictRequests.map((conflict, index) => {
+                        console.log("Rendering conflict:", conflict); // Tambahkan log ini
+                        return (
+                            <div key={index} style={{
+                                border: "1px solid #ccc",
+                                padding: "20px",
+                                borderRadius: "8px",
+                                marginBottom: "20px",
+                                width: "calc(50% - 20px)", // Setengah layar dengan margin
+                                marginRight: index % 2 === 0 ? "20px" : "0" // Tambahkan margin kanan untuk card di sebelah kiri
+                            }}>
+                                <h3>Data Bentrok</h3>
+                                <p>
+                                    Jadwal rapat <strong>{conflict.title}</strong> bentrok pada tanggal <strong>{conflict.start}</strong>
+                                </p>
+                                <button
+                                    onClick={() => handleAccept(conflict.id)} // Pass ID to handleAccept
+                                    style={{ marginRight: "10px" }}
+                                    className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm w-auto px-5 py-2.5 text-center mt-2"
+                                >
+                                    Acc
+                                </button>
+                                <button
+                                    onClick={() => handleCancel(conflict.id)} // Pass ID to handleCancel
+                                    className="text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-red-300 font-medium rounded-lg text-sm w-auto px-5 py-2.5 text-center mt-2"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        );
+                    })
+                ) : (
+                    <div style={{ width: "100%", textAlign: "center", marginTop: "20px" }}>
+                        <p>There are no records to display</p> Tidak ada jadwal bentrok
+                    </div>
+                )}
             </div>
         </App>
     );

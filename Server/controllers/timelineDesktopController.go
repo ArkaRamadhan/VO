@@ -167,7 +167,7 @@ func ExportTimelineDesktopToExcel(c *gin.Context) {
 	}
 
 	// Set header untuk download file
-	c.Header("Content-Disposition", "attachment; filename=Calendar2024.xlsx")
+	c.Header("Content-Disposition", "attachment; filename=its_report_timelineDesktop.xlsx")
 	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 	c.Header("Content-Length", strconv.Itoa(len(buffer.Bytes())))
 	c.Writer.Write(buffer.Bytes())
@@ -175,10 +175,9 @@ func ExportTimelineDesktopToExcel(c *gin.Context) {
 
 func setMonthDataDesktop(f *excelize.File, sheet, month string, rowOffset, colOffset int, events []models.TimelineDesktop, resourceMap map[uint]string) {
 	var (
-		monthStyle, titleStyle, dataStyle, blankStyle,
-		grayBlankStyle, grayDataStyle, wrapTextStyle int // Tambahkan variabel untuk wrapTextStyle
-		err  error
-		addr string
+		monthStyle, titleStyle, dataStyle, blankStyle int
+		err                                           error
+		addr                                          string
 	)
 	// Get the first day of the month and the number of days in the month
 	monthTime, err := time.Parse("January 2006", month)
@@ -188,14 +187,6 @@ func setMonthDataDesktop(f *excelize.File, sheet, month string, rowOffset, colOf
 	}
 	firstDay := monthTime.Weekday()
 	daysInMonth := time.Date(monthTime.Year(), monthTime.Month()+1, 0, 0, 0, 0, 0, time.UTC).Day()
-
-	// Define wrap text style
-	if wrapTextStyle, err = f.NewStyle(&excelize.Style{
-		Alignment: &excelize.Alignment{WrapText: true},
-	}); err != nil {
-		fmt.Println(err)
-		return
-	}
 
 	// cell values
 	data := map[int][]interface{}{
@@ -229,8 +220,53 @@ func setMonthDataDesktop(f *excelize.File, sheet, month string, rowOffset, colOf
 
 				if currentDate.Equal(startDate) || (currentDate.After(startDate) && currentDate.Before(endDate)) {
 					resourceName := resourceMap[uint(event.ResourceId)]
-					week[d] = fmt.Sprintf("%d %s", day, resourceName)
-					eventDetails[d] = event.Title
+					// Format untuk menampilkan nama resource dan hari
+					displayText := resourceName // Hanya tampilkan nama resource
+					// Cek jika sudah ada teks di sel tersebut, tambahkan dengan koma
+					if existingText, exists := week[d].(string); exists && existingText != "" {
+						week[d] = fmt.Sprintf("%s, %s", existingText, displayText)
+					} else {
+						week[d] = fmt.Sprintf("%d %s", day, displayText) // Tampilkan tanggal hanya pada entri pertama
+					}
+					// Gabungkan judul event dengan koma jika ada lebih dari satu event pada hari yang sama
+					if existingDetails, exists := eventDetails[d].(string); exists && existingDetails != "" {
+						eventDetails[d] = fmt.Sprintf("%s, %s", existingDetails, event.Title)
+					} else {
+						eventDetails[d] = event.Title
+					}
+
+					// Hanya terapkan warna untuk event pertama pada hari itu
+					if event.Title != "" && eventDetails[d] == event.Title { // Perubahan kondisi di sini
+						cellAddr, _ := excelize.JoinCellName(string('B'+colOffset+int(d)), r+1)
+
+						// Buat gaya baru dengan warna latar belakang
+						style, err := f.NewStyle(&excelize.Style{
+							Fill: excelize.Fill{
+								Type:    "pattern",
+								Color:   []string{event.BgColor},
+								Pattern: 1,
+							},
+							Font:      &excelize.Font{Size: 9},
+							Alignment: &excelize.Alignment{WrapText: true},
+							Border: []excelize.Border{
+								{Type: "left", Color: "DADEE0", Style: 1},
+								{Type: "right", Color: "DADEE0", Style: 1},
+								{Type: "top", Color: "DADEE0", Style: 1},
+								{Type: "bottom", Color: "DADEE0", Style: 1},
+							},
+						})
+						if err != nil {
+							fmt.Printf("Error membuat gaya untuk sel %s: %v\n", cellAddr, err)
+							continue
+						}
+
+						// Terapkan gaya ke sel
+						if err := f.SetCellStyle(sheet, cellAddr, cellAddr, style); err != nil {
+							fmt.Printf("Error menerapkan gaya ke sel %s: %v\n", cellAddr, err)
+						} else {
+							fmt.Printf("Berhasil menerapkan gaya dengan warna %s ke sel %s\n", event.BgColor, cellAddr)
+						}
+					}
 				}
 			}
 
@@ -239,155 +275,131 @@ func setMonthDataDesktop(f *excelize.File, sheet, month string, rowOffset, colOf
 		data[r] = week
 		data[r+1] = eventDetails // Isi baris berikutnya dengan judul event
 		firstDay = 0             // Reset firstDay for subsequent weeks
-
-		// Apply wrap text style to all cells in these rows
-		if addr, err = excelize.JoinCellName(string('B'+colOffset), r); err != nil {
-			fmt.Println(err)
-			return
-		}
-		if err = f.SetCellStyle(sheet, addr, fmt.Sprintf("%s%d", string('H'+colOffset), r+1), wrapTextStyle); err != nil {
-			fmt.Println(err)
-			return
-		}
 	}
 
-	// custom rows height
-	height := map[int]float64{
-		1 + rowOffset: 45, 3 + rowOffset: 22, 5 + rowOffset: 30, 7 + rowOffset: 30,
-		9 + rowOffset: 30, 11 + rowOffset: 30, 13 + rowOffset: 30, 15 + rowOffset: 30,
-	}
-	top := excelize.Border{Type: "top", Style: 1, Color: "DADEE0"}
-	left := excelize.Border{Type: "left", Style: 1, Color: "DADEE0"}
-	right := excelize.Border{Type: "right", Style: 1, Color: "DADEE0"}
-	bottom := excelize.Border{Type: "bottom", Style: 1, Color: "DADEE0"}
-	fill := excelize.Fill{Type: "pattern", Color: []string{"EFEFEF"}, Pattern: 1}
-
-	// set each cell value
-	for r, row := range data {
-		if addr, err = excelize.JoinCellName(string('B'+colOffset), r); err != nil {
+		// custom rows height
+		height := map[int]float64{
+			1 + rowOffset: 45, 3 + rowOffset: 22, 5 + rowOffset: 30, 7 + rowOffset: 30,
+			9 + rowOffset: 30, 11 + rowOffset: 30, 13 + rowOffset: 30, 15 + rowOffset: 30,
+		}
+		top := excelize.Border{Type: "top", Style: 1, Color: "DADEE0"}
+		left := excelize.Border{Type: "left", Style: 1, Color: "DADEE0"}
+		right := excelize.Border{Type: "right", Style: 1, Color: "DADEE0"}
+		bottom := excelize.Border{Type: "bottom", Style: 1, Color: "DADEE0"}
+	
+		// set each cell value
+		for r, row := range data {
+			if addr, err = excelize.JoinCellName(string('B'+colOffset), r); err != nil {
+				fmt.Println(err)
+				return
+			}
+			if err = f.SetSheetRow(sheet, addr, &row); err != nil {
+				fmt.Println(err)
+				return
+			}
+		}
+		// set custom row height
+		for r, ht := range height {
+			if err = f.SetRowHeight(sheet, r, ht); err != nil {
+				fmt.Println(err)
+				return
+			}
+		}
+	
+		// set custom column width
+		if err = f.SetColWidth(sheet, string('B'+colOffset), string('H'+colOffset), 15); err != nil {
 			fmt.Println(err)
 			return
 		}
-		if err = f.SetSheetRow(sheet, addr, &row); err != nil {
+	
+		// merge cell for the 'MONTH'
+		if err = f.MergeCell(sheet, fmt.Sprintf("%s%d", string('B'+colOffset), 1+rowOffset), fmt.Sprintf("%s%d", string('D'+colOffset), 1+rowOffset)); err != nil {
 			fmt.Println(err)
 			return
 		}
-	}
-	// set custom row height
-	for r, ht := range height {
-		if err = f.SetRowHeight(sheet, r, ht); err != nil {
+	
+		// define font style for the 'MONTH'
+		if monthStyle, err = f.NewStyle(&excelize.Style{
+			Font: &excelize.Font{Color: "1f7f3b", Bold: true, Size: 22, Family: "Arial"},
+		}); err != nil {
 			fmt.Println(err)
 			return
 		}
-	}
-	// set custom column width
-	if err = f.SetColWidth(sheet, string('B'+colOffset), string('H'+colOffset), 15); err != nil {
-		fmt.Println(err)
-		return
-	}
-	// merge cell for the 'MONTH'
-	if err = f.MergeCell(sheet, fmt.Sprintf("%s%d", string('B'+colOffset), 1+rowOffset), fmt.Sprintf("%s%d", string('D'+colOffset), 1+rowOffset)); err != nil {
-		fmt.Println(err)
-		return
-	}
-	// define font style for the 'MONTH'
-	if monthStyle, err = f.NewStyle(&excelize.Style{
-		Font: &excelize.Font{Color: "1f7f3b", Bold: true, Size: 22, Family: "Arial"},
-	}); err != nil {
-		fmt.Println(err)
-		return
-	}
-	// set font style for the 'MONTH'
-	if err = f.SetCellStyle(sheet, fmt.Sprintf("%s%d", string('B'+colOffset), 1+rowOffset), fmt.Sprintf("%s%d", string('D'+colOffset), 1+rowOffset), monthStyle); err != nil {
-		fmt.Println(err)
-		return
-	}
-	// define style for the 'SUNDAY' to 'SATURDAY'
-	if titleStyle, err = f.NewStyle(&excelize.Style{
-		Font:      &excelize.Font{Color: "1f7f3b", Size: 10, Bold: true, Family: "Arial"},
-		Fill:      excelize.Fill{Type: "pattern", Color: []string{"E6F4EA"}, Pattern: 1},
-		Alignment: &excelize.Alignment{Vertical: "center", Horizontal: "center"},
-		Border:    []excelize.Border{{Type: "top", Style: 2, Color: "1f7f3b"}},
-	}); err != nil {
-		fmt.Println(err)
-		return
-	}
-	// set style for the 'SUNDAY' to 'SATURDAY'
-	if err = f.SetCellStyle(sheet, fmt.Sprintf("%s%d", string('B'+colOffset), 3+rowOffset), fmt.Sprintf("%s%d", string('H'+colOffset), 3+rowOffset), titleStyle); err != nil {
-		fmt.Println(err)
-		return
-	}
-	// define cell border for the date cell in the date range
-	if dataStyle, err = f.NewStyle(&excelize.Style{
-		Border: []excelize.Border{top, left, right},
-	}); err != nil {
-		fmt.Println(err)
-		return
-	}
-	// set cell border for the date cell in the date range
-	for _, r := range []int{4, 6, 8, 10, 12, 14} {
-		if err = f.SetCellStyle(sheet, fmt.Sprintf("%s%d", string('B'+colOffset), r+rowOffset),
-			fmt.Sprintf("%s%d", string('H'+colOffset), r+rowOffset), dataStyle); err != nil {
+	
+		// set font style for the 'MONTH'
+		if err = f.SetCellStyle(sheet, fmt.Sprintf("%s%d", string('B'+colOffset), 1+rowOffset), fmt.Sprintf("%s%d", string('D'+colOffset), 1+rowOffset), monthStyle); err != nil {
 			fmt.Println(err)
 			return
 		}
-	}
-	// define cell border for the blank cell in the date range
-	if blankStyle, err = f.NewStyle(&excelize.Style{
-		Border: []excelize.Border{left, right, bottom},
-		Font:   &excelize.Font{Size: 9},
-		Alignment: &excelize.Alignment{WrapText: true},
-	}); err != nil {
-		fmt.Println(err)
-		return
-	}
-	// set cell border for the blank cell in the date range
-	for _, r := range []int{5, 7, 9, 11, 13, 15} {
-		if err = f.SetCellStyle(sheet, fmt.Sprintf("%s%d", string('B'+colOffset), r+rowOffset),
-			fmt.Sprintf("%s%d", string('H'+colOffset), r+rowOffset), blankStyle); err != nil {
+	
+		// define style for the 'SUNDAY' to 'SATURDAY'
+		if titleStyle, err = f.NewStyle(&excelize.Style{
+			Font:      &excelize.Font{Color: "1f7f3b", Size: 10, Bold: true, Family: "Arial"},
+			Fill:      excelize.Fill{Type: "pattern", Color: []string{"E6F4EA"}, Pattern: 1},
+			Alignment: &excelize.Alignment{Vertical: "center", Horizontal: "center"},
+			Border:    []excelize.Border{{Type: "top", Style: 2, Color: "1f7f3b"}},
+		}); err != nil {
 			fmt.Println(err)
 			return
 		}
+	
+		// set style for the 'SUNDAY' to 'SATURDAY'
+		if err = f.SetCellStyle(sheet, fmt.Sprintf("%s%d", string('B'+colOffset), 3+rowOffset), fmt.Sprintf("%s%d", string('H'+colOffset), 3+rowOffset), titleStyle); err != nil {
+			fmt.Println(err)
+			return
+		}
+	
+		// define cell border for the date cell in the date range
+		if dataStyle, err = f.NewStyle(&excelize.Style{
+			Border: []excelize.Border{top, left, right},
+		}); err != nil {
+			fmt.Println(err)
+			return
+		}
+	
+		// set cell border for the date cell in the date range
+		for _, r := range []int{4, 6, 8, 10, 12, 14} {
+			if err = f.SetCellStyle(sheet, fmt.Sprintf("%s%d", string('B'+colOffset), r+rowOffset),
+				fmt.Sprintf("%s%d", string('H'+colOffset), r+rowOffset), dataStyle); err != nil {
+				fmt.Println(err)
+				return
+			}
+		}
+	
+		// define cell border for the blank cell in the date range
+		if blankStyle, err = f.NewStyle(&excelize.Style{
+			Border:    []excelize.Border{left, right, bottom},
+			Font:      &excelize.Font{Size: 9},
+			Alignment: &excelize.Alignment{WrapText: true},
+		}); err != nil {
+			fmt.Println(err)
+			return
+		}
+	
+		// set cell border for the blank cell in the date range, but only for cells that don't have a fill color
+		for _, r := range []int{5, 7, 9, 11, 13, 15} {
+			for c := 0; c < 7; c++ {
+				cellAddr, _ := excelize.JoinCellName(string('B'+colOffset+c), r+rowOffset)
+				if styleID, err := f.GetCellStyle(sheet, cellAddr); err != nil {
+					// Handle error
+					fmt.Println("Error mendapatkan gaya sel:", err)
+					return
+				} else if styleID == 0 {
+					// Jika tidak ada gaya yang diterapkan, maka terapkan blankStyle
+					if err = f.SetCellStyle(sheet, cellAddr, cellAddr, blankStyle); err != nil {
+						fmt.Println("Error menerapkan blankStyle:", err)
+						return
+					}
+				}
+			}
+		}
+	
+		// hide gridlines for the worksheet
+		disable := false
+		if err := f.SetSheetView(sheet, 0, &excelize.ViewOptions{
+			ShowGridLines: &disable,
+		}); err != nil {
+			fmt.Println(err)
+		}
 	}
-	// define the border and fill style for the blank cell in previous and next month
-	if grayBlankStyle, err = f.NewStyle(&excelize.Style{
-		Border: []excelize.Border{left, right, bottom},
-		Font:   &excelize.Font{Size: 9},
-		Alignment: &excelize.Alignment{WrapText: true},
-		Fill:   fill}); err != nil {
-		fmt.Println(err)
-		return
-	}
-	// set the border and fill style for the blank cell in previous and next month
-	if err = f.SetCellStyle(sheet, fmt.Sprintf("%s%d", string('B'+colOffset), 5+rowOffset), fmt.Sprintf("%s%d", string('F'+colOffset), 5+rowOffset), grayBlankStyle); err != nil {
-		fmt.Println(err)
-		return
-	}
-	if err = f.SetCellStyle(sheet, fmt.Sprintf("%s%d", string('C'+colOffset), 15+rowOffset), fmt.Sprintf("%s%d", string('H'+colOffset), 15+rowOffset), grayBlankStyle); err != nil {
-		fmt.Println(err)
-		return
-	}
-	// define the border and fill style for the date cell in previous and next month
-	if grayDataStyle, err = f.NewStyle(&excelize.Style{
-		Border: []excelize.Border{left, right, top},
-		Font:   &excelize.Font{Color: "777777"}, Fill: fill}); err != nil {
-		fmt.Println(err)
-		return
-	}
-	// set the border and fill style for the date cell in previous and next month
-	if err = f.SetCellStyle(sheet, fmt.Sprintf("%s%d", string('B'+colOffset), 4+rowOffset), fmt.Sprintf("%s%d", string('F'+colOffset), 4+rowOffset), grayDataStyle); err != nil {
-		fmt.Println(err)
-		return
-	}
-	if err = f.SetCellStyle(sheet, fmt.Sprintf("%s%d", string('C'+colOffset), 14+rowOffset), fmt.Sprintf("%s%d", string('H'+colOffset), 14+rowOffset), grayDataStyle); err != nil {
-		fmt.Println(err)
-		return
-	}
-	// hide gridlines for the worksheet
-	disable := false
-	if err := f.SetSheetView(sheet, 0, &excelize.ViewOptions{
-		ShowGridLines: &disable,
-	}); err != nil {
-		fmt.Println(err)
-	}
-}
+	

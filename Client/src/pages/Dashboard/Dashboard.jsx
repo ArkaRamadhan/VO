@@ -16,6 +16,7 @@ import { getMeetingList } from "../../../API/KegiatanProses/MeetingSchedule.serv
 import { getCutis } from "../../../API/KegiatanProses/JadwalCuti.service";
 import { getRapats } from "../../../API/KegiatanProses/JadwalRapat.service";
 import { getProjects } from "../../../API/RencanaKerja/Project.service";
+import { getArsip } from "../../../API/DataInformasi/Arsip.service";
 import { useToken } from "../../context/TokenContext";
 
 const useFetchData = (fetchFunction) => {
@@ -44,6 +45,7 @@ export const DashboardPage = () => {
   const Cuti = useFetchData(getCutis);
   const Rapat = useFetchData(getRapats);
   const Project = useFetchData(getProjects);
+  const Arsip = useFetchData(getArsip);
 
   return (
     <App services="Dashboard">
@@ -63,6 +65,7 @@ export const DashboardPage = () => {
         cuti={Cuti}
         masuk={SuratMasuk}
         keluar={SuratKeluar}
+        arsip={Arsip}
       />
     </App>
   );

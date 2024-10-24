@@ -1,8 +1,8 @@
 import React from "react";
 
-const Section = ({ span, cols, title, borderColor, children }) => (
+const Section = ({ span, cols, title, borderColor, children, height }) => (
   <div
-    className={`${span} w-full h-fit bg-gray-50 border-b-4 border-${borderColor}-500 rounded-lg shadow p-4`}
+    className={`${span} w-full ${height ? `h-${height}` : 'h-full'} bg-gray-50 border-b-4 border-${borderColor}-500 rounded-lg shadow p-4 flex flex-col`}
   >
     <div className="mb-3">
       <div className="flex items-center">
@@ -13,15 +13,15 @@ const Section = ({ span, cols, title, borderColor, children }) => (
         </div>
       </div>
     </div>
-    <div className="bg-white shadow p-3 rounded-lg">
-      <div className={`grid ${cols} gap-3 mb-2 text-center`}>{children}</div>
+    <div className="bg-white shadow p-3 rounded-lg flex flex-col h-full">
+      <div className={`grid ${cols} gap-3 mb-2 text-center h-full`}>{children}</div>
     </div>
   </div>
 );
 
-const DataItem = ({ count, label, color }) => (
+const DataItem = ({ count, label, color, className }) => (
   <dl
-    className={`bg-${color}-50 p-2 rounded-lg flex flex-col items-center justify-center`}
+    className={`bg-${color}-50 p-2 rounded-lg flex flex-col items-center justify-center h-full ${className}`}
   >
     <dt
       className={`size-8 rounded-full bg-${color}-100 text-${color}-600 text-sm font-medium flex items-center justify-center mb-1`}
@@ -49,6 +49,7 @@ export const FeatureDashboard = (props) => {
     cuti = [],
     masuk = [],
     keluar = [],
+    arsip = [],
   } = props;
 
   return (
@@ -57,7 +58,7 @@ export const FeatureDashboard = (props) => {
         {/* Kegiatan */}
         <Section
           span="col-span-4"
-          cols="grid-cols-5"
+          cols="grid-cols-4"
           title="Data Kegiatan"
           borderColor="yellow"
         >
@@ -76,7 +77,7 @@ export const FeatureDashboard = (props) => {
             label="Booking Ruang Rapat"
             color="yellow"
           />
-          <DataItem count={rapat.length} label="Jadwal Rapat" color="yellow" />
+          <DataItem count={rapat.length} label="Jadwal Rapat" color="yellow" className="row-span-2"/>
           <DataItem count={cuti.length} label="Jadwal Cuti" color="yellow" />
           <DataItem count={meeting.length} label="Meeting" color="yellow" />
           <DataItem count={meetingList.length} label="Schedule" color="yellow" />
@@ -86,10 +87,11 @@ export const FeatureDashboard = (props) => {
         <Section
           span="col-span-1"
           cols="grid-cols-1"
+          height="100%"
           title="Data Rencana Kerja"
           borderColor="green"
         >
-          <DataItem count={project.length} label="Project" color="green" />
+          <DataItem count={project.length} label="Project" color="green"/>
         </Section>
       </div>
 
@@ -109,6 +111,7 @@ export const FeatureDashboard = (props) => {
             count={perdin.length}
             label="Perjalanan Dinas"
             color="cyan"
+            className="col-span-2"
           />
         </Section>
 
@@ -121,6 +124,7 @@ export const FeatureDashboard = (props) => {
         >
           <DataItem count={masuk.length} label="Surat Masuk" color="red" />
           <DataItem count={keluar.length} label="Surat Keluar" color="red" />
+          <DataItem count={arsip.length} label="Arsip" color="red" className="col-span-2"/>
         </Section>
       </div>
     </div>

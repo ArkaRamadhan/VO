@@ -346,7 +346,7 @@ func MeetingListDelete(c *gin.Context) {
 
 func CreateExcelMeetingList(c *gin.Context) {
 	dir := "C:\\excel"
-	baseFileName := "its_report"
+	baseFileName := "its_report_meetingSchedule"
 	filePath := filepath.Join(dir, baseFileName+".xlsx")
 
 	// Check if the file already exists
@@ -361,27 +361,21 @@ func CreateExcelMeetingList(c *gin.Context) {
 	f := excelize.NewFile()
 
 	// Define sheet names
-	sheetNames := []string{"MEMO", "PROJECT", "PERDIN", "SURAT MASUK", "SURAT KELUAR", "ARSIP", "MEETING", "MEETING SCHEDULE"}
+	sheetName := "MEETING SCHEDULE"
 
 	// Create sheets and set headers for "MEETING SCHEDULE" only
-	for _, sheetName := range sheetNames {
-		if sheetName == "MEETING SCHEDULE" {
-			f.NewSheet(sheetName)
-			f.SetCellValue(sheetName, "A1", "Hari")
-			f.SetCellValue(sheetName, "B1", "Tanggal")
-			f.SetCellValue(sheetName, "C1", "Perihal")
-			f.SetCellValue(sheetName, "D1", "Waktu")
-			f.SetCellValue(sheetName, "E1", "Selesai")
-			f.SetCellValue(sheetName, "F1", "Tempat")
-			f.SetCellValue(sheetName, "G1", "Status")
-			f.SetCellValue(sheetName, "H1", "PIC")
+	f.NewSheet(sheetName)
+	f.SetCellValue(sheetName, "A1", "Hari")
+	f.SetCellValue(sheetName, "B1", "Tanggal")
+	f.SetCellValue(sheetName, "C1", "Perihal")
+	f.SetCellValue(sheetName, "D1", "Waktu")
+	f.SetCellValue(sheetName, "E1", "Selesai")
+	f.SetCellValue(sheetName, "F1", "Tempat")
+	f.SetCellValue(sheetName, "G1", "Status")
+	f.SetCellValue(sheetName, "H1", "PIC")
 
-			f.SetColWidth(sheetName, "A", "H", 20)
-			f.SetRowHeight(sheetName, 1, 20)
-		} else {
-			f.NewSheet(sheetName)
-		}
-	}
+	f.SetColWidth(sheetName, "A", "H", 20)
+	f.SetRowHeight(sheetName, 1, 20)
 
 	styleHeader, err := f.NewStyle(&excelize.Style{
 		Font: &excelize.Font{
@@ -493,8 +487,23 @@ func CreateExcelMeetingList(c *gin.Context) {
 	meetingListSheetName := "MEETING SCHEDULE"
 	for i, meetingList := range meetingList {
 		rowNum := i + 2 // Start from the second row (first row is header)
-		f.SetCellValue(meetingListSheetName, fmt.Sprintf("A%d", rowNum), *meetingList.Hari)
-		f.SetCellValue(meetingListSheetName, fmt.Sprintf("B%d", rowNum), meetingList.Tanggal.Format("2006-01-02"))
+
+		// Format Hari dan Tanggal
+		formattedDate := ""
+		if meetingList.Tanggal != nil {
+			dayInEnglish := meetingList.Tanggal.Format("Monday") // Dapatkan nama hari dalam bahasa Inggris
+			dayInIndonesian := hariIndonesia(dayInEnglish)       // Konversi ke bahasa Indonesia
+			formattedDate = dayInIndonesian + ", " + meetingList.Tanggal.Format("2006-01-02")
+		}
+		f.SetCellValue(meetingListSheetName, fmt.Sprintf("B%d", rowNum), formattedDate)
+
+		// Periksa dan atur nilai Hari
+		if meetingList.Hari != nil {
+			f.SetCellValue(meetingListSheetName, fmt.Sprintf("A%d", rowNum), *meetingList.Hari)
+		} else {
+			f.SetCellValue(meetingListSheetName, fmt.Sprintf("A%d", rowNum), "")
+		}
+
 		f.SetCellValue(meetingListSheetName, fmt.Sprintf("C%d", rowNum), *meetingList.Perihal)
 
 		// Handle Waktu
@@ -555,88 +564,6 @@ func CreateExcelMeetingList(c *gin.Context) {
 	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", fileName))
 	c.Writer.Write(buf.Bytes())
-}
-
-func UpdateSheetMeetingList(c *gin.Context) {
-	dir := "C:\\excel"
-	fileName := "its_report.xlsx"
-	filePath := filepath.Join(dir, fileName)
-
-	// Check if the file exists
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		c.String(http.StatusBadRequest, "File tidak ada")
-		return
-	}
-
-	// Open the existing Excel file
-	f, err := excelize.OpenFile(filePath)
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Error membuka file: %v", err)
-		return
-	}
-	defer f.Close()
-
-	// Define sheet name
-	sheetName := "MEETING SCHEDULE"
-
-	// Check if the sheet exists
-	sheetIndex, err := f.GetSheetIndex(sheetName)
-	if err != nil || sheetIndex == -1 {
-		c.String(http.StatusBadRequest, "Lembar kerja MEETING SCHEDULE tidak ditemukan")
-		return
-	}
-
-	// Clear existing data except the header by deleting rows
-	rows, err := f.GetRows(sheetName)
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Error getting rows: %v", err)
-		return
-	}
-	for i := 1; i < len(rows); i++ { // Start from 1 to keep the header
-		f.RemoveRow(sheetName, 2) // Always remove the second row since the sheet compresses up
-	}
-
-	// Fetch updated data from the database
-	var meetingList []models.MeetingSchedule
-	initializers.DB.Find(&meetingList)
-
-	// Write data rows
-	for i, meetingList := range meetingList {
-		rowNum := i + 2 // Start from the second row (first row is header)
-		f.SetCellValue(sheetName, fmt.Sprintf("A%d", rowNum), meetingList.Hari)
-		f.SetCellValue(sheetName, fmt.Sprintf("B%d", rowNum), meetingList.Tanggal.Format("2006-01-02"))
-		f.SetCellValue(sheetName, fmt.Sprintf("C%d", rowNum), meetingList.Perihal)
-
-		// Handle Waktu
-		if meetingList.Waktu != nil {
-			f.SetCellValue(sheetName, fmt.Sprintf("D%d", rowNum), *meetingList.Waktu)
-		} else {
-			f.SetCellValue(sheetName, fmt.Sprintf("D%d", rowNum), "")
-		}
-
-		// Handle Selesai
-		if meetingList.Selesai != nil {
-			f.SetCellValue(sheetName, fmt.Sprintf("E%d", rowNum), *meetingList.Selesai)
-		} else {
-			f.SetCellValue(sheetName, fmt.Sprintf("E%d", rowNum), "")
-		}
-
-		if meetingList.Tempat != nil {
-			f.SetCellValue(sheetName, fmt.Sprintf("F%d", rowNum), *meetingList.Tempat)
-		} else {
-			f.SetCellValue(sheetName, fmt.Sprintf("F%d", rowNum), "")
-		}
-
-		f.SetCellValue(sheetName, fmt.Sprintf("G%d", rowNum), meetingList.Status)
-		f.SetCellValue(sheetName, fmt.Sprintf("H%d", rowNum), meetingList.Pic)
-	}
-
-	// Save the file with updated data
-	if err := f.SaveAs(filePath); err != nil {
-		c.String(http.StatusInternalServerError, "Error menyimpan file: %v", err)
-		return
-	}
-
 }
 
 func ImportExcelMeetingList(c *gin.Context) {
@@ -730,4 +657,17 @@ func ImportExcelMeetingList(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Data imported successfully."})
+}
+
+func hariIndonesia(day string) string {
+	days := map[string]string{
+		"Monday":    "Senin",
+		"Tuesday":   "Selasa",
+		"Wednesday": "Rabu",
+		"Thursday":  "Kamis",
+		"Friday":    "Jumat",
+		"Saturday":  "Sabtu",
+		"Sunday":    "Minggu",
+	}
+	return days[day]
 }

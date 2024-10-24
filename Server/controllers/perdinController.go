@@ -371,7 +371,7 @@ func PerdinDelete(c *gin.Context) {
 
 func CreateExcelPerdin(c *gin.Context) {
 	dir := ":\\excel"
-	baseFileName := "its_report"
+	baseFileName := "its_report_perdin"
 	filePath := filepath.Join(dir, baseFileName+".xlsx")
 
 	// Check if the file already exists
@@ -386,23 +386,17 @@ func CreateExcelPerdin(c *gin.Context) {
 	f := excelize.NewFile()
 
 	// Define sheet names
-	sheetNames := []string{"MEMO", "BERITA ACARA", "SK", "SURAT", "PROJECT", "PERDIN", "SURAT MASUK", "SURAT KELUAR", "ARSIP", "MEETING", "MEETING SCHEDULE"}
-	// Create sheets and set headers for "SAG" only
-	for _, sheetName := range sheetNames {
-		if sheetName == "PERDIN" {
-			f.NewSheet(sheetName)
-			f.SetCellValue(sheetName, "A1", "No Perdin")
-			f.SetCellValue(sheetName, "B1", "Tanggal")
-			f.SetCellValue(sheetName, "C1", "Deskripsi")
-			f.MergeCell(sheetName, "C1", "D1") // Menggabungkan sel C1 dan D1
+	sheetName := "PERDIN"
 
-			f.SetColWidth(sheetName, "A", "B", 20)
-			f.SetColWidth(sheetName, "C", "D", 28)
-			f.SetRowHeight(sheetName, 1, 28)
-		} else {
-			f.NewSheet(sheetName)
-		}
-	}
+	f.NewSheet(sheetName)
+	f.SetCellValue(sheetName, "A1", "No Perdin")
+	f.SetCellValue(sheetName, "B1", "Tanggal")
+	f.SetCellValue(sheetName, "C1", "Deskripsi")
+	f.MergeCell(sheetName, "C1", "D1") // Menggabungkan sel C1 dan D1
+
+	f.SetColWidth(sheetName, "A", "B", 20)
+	f.SetColWidth(sheetName, "C", "D", 28)
+	f.SetRowHeight(sheetName, 1, 28)
 
 	// Fetch initial data from the database
 	var perdins []models.Perdin
@@ -482,70 +476,6 @@ func CreateExcelPerdin(c *gin.Context) {
 	c.Writer.Write(buf.Bytes())
 }
 
-func UpdateSheetPerdin(c *gin.Context) {
-	dir := ":\\excel"
-	fileName := "its_report.xlsx"
-	filePath := filepath.Join(dir, fileName)
-
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		c.String(http.StatusBadRequest, "File tidak ada")
-		return
-	}
-
-	f, err := excelize.OpenFile(filePath)
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Error membuka file: %v", err)
-		return
-	}
-	defer f.Close()
-
-	sheetName := "PERDIN"
-
-	if _, err := f.GetSheetIndex(sheetName); err == nil {
-		f.DeleteSheet(sheetName)
-	}
-	f.NewSheet(sheetName)
-
-	f.SetCellValue(sheetName, "A1", "No Perdin")
-	f.SetCellValue(sheetName, "B1", "Tanggal")
-	f.SetCellValue(sheetName, "C1", "Deskripsi")
-	f.MergeCell(sheetName, "C1", "D1") // Menggabungkan sel C1 dan D1
-
-	// Mengatur lebar kolom
-	f.SetColWidth(sheetName, "A", "D", 20)
-
-	// Set text alignment to center for header cells
-	headerStyle, err := f.NewStyle(&excelize.Style{
-		Alignment: &excelize.Alignment{
-			Horizontal: "center",
-		},
-	})
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Error creating header style: %v", err)
-		return
-	}
-
-	f.SetCellStyle(sheetName, "A1", "D1", headerStyle)
-
-	var perdins []models.Perdin
-	initializers.DB.Find(&perdins)
-
-	for i, perdin := range perdins {
-		rowNum := i + 2
-		f.SetCellValue(sheetName, fmt.Sprintf("A%d", rowNum), perdin.NoPerdin)
-		f.SetCellValue(sheetName, fmt.Sprintf("B%d", rowNum), perdin.Tanggal.Format("2006-01-02"))
-		f.SetCellValue(sheetName, fmt.Sprintf("C%d", rowNum), perdin.Hotel)
-		f.SetCellValue(sheetName, fmt.Sprintf("D%d", rowNum), perdin.Transport)
-	}
-
-	if err := f.SaveAs(filePath); err != nil {
-		c.String(http.StatusInternalServerError, "Error menyimpan file: %v", err)
-		return
-	}
-
-	c.Redirect(http.StatusFound, "/Perdin")
-}
-
 func excelDateToTimePerdin(excelDate int) (time.Time, error) {
 	// Excel menggunakan tanggal mulai 1 Januari 1900 (serial 1)
 	baseDate := time.Date(1899, time.December, 30, 0, 0, 0, 0, time.UTC)
@@ -592,6 +522,8 @@ func ImportExcelPerdin(c *gin.Context) {
 
 	// Definisikan semua format tanggal yang mungkin
 	dateFormats := []string{
+		"02-Jan-06",
+		"06-Jan-02",
 		"2 January 2006",
 		"2006-01-02",
 		"02-01-2006",
@@ -604,6 +536,7 @@ func ImportExcelPerdin(c *gin.Context) {
 		"02/01/06",
 		"06/02/01",
 		"06/01/02",
+		"1-Jan-06",
 		"06-Jan-02",
 	}
 

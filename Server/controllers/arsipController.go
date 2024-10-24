@@ -277,7 +277,7 @@ func ArsipDelete(c *gin.Context) {
 
 func CreateExcelArsip(c *gin.Context) {
 	dir := "C:\\excel"
-	baseFileName := "its_report"
+	baseFileName := "its_report_arsip"
 	filePath := filepath.Join(dir, baseFileName+".xlsx")
 
 	// Check if the file already exists
@@ -291,29 +291,22 @@ func CreateExcelArsip(c *gin.Context) {
 	// File does not exist, create a new file
 	f := excelize.NewFile()
 
-	// Define sheet names
-	sheetNames := []string{"MEMO", "BERITA ACARA", "SK", "SURAT", "PROJECT", "PERDIN", "SURAT MASUK", "SURAT KELUAR", "ARSIP", "MEETING", "MEETING SCHEDULE"}
 
-	// Create sheets and set headers for "ARSIP" only
-	for _, sheetName := range sheetNames {
-		if sheetName == "ARSIP" {
-			f.NewSheet(sheetName)
-			f.SetCellValue(sheetName, "A1", "No Arsip")
-			f.SetCellValue(sheetName, "B1", "Jenis Dokumen")
-			f.SetCellValue(sheetName, "C1", "No Dokumen")
-			f.SetCellValue(sheetName, "D1", "Perihal")
-			f.SetCellValue(sheetName, "E1", "No Box")
-			f.SetCellValue(sheetName, "F1", "Keterangan")
-			f.SetCellValue(sheetName, "G1", "Tanggal Dokumen")
-			f.SetCellValue(sheetName, "H1", "Tanggal Penyerahan")
+	// Buat sheet dan atur header untuk "ARSIP"
+	sheetName := "ARSIP"
+	f.NewSheet(sheetName)
+	f.SetCellValue(sheetName, "A1", "No Arsip")
+	f.SetCellValue(sheetName, "B1", "Jenis Dokumen")
+	f.SetCellValue(sheetName, "C1", "No Dokumen")
+	f.SetCellValue(sheetName, "D1", "Perihal")
+	f.SetCellValue(sheetName, "E1", "No Box")
+	f.SetCellValue(sheetName, "F1", "Keterangan")
+	f.SetCellValue(sheetName, "G1", "Tanggal Dokumen")
+	f.SetCellValue(sheetName, "H1", "Tanggal Penyerahan")
 
-			// Set column widths for better readability
-			f.SetColWidth(sheetName, "A", "H", 20)
-			f.SetRowHeight(sheetName, 1, 20)
-		} else {
-			f.NewSheet(sheetName)
-		}
-	}
+	// Set column widths for better readability
+	f.SetColWidth(sheetName, "A", "H", 20)
+	f.SetRowHeight(sheetName, 1, 20)
 
 	styleHeader, err := f.NewStyle(&excelize.Style{
 		Font: &excelize.Font{
@@ -405,60 +398,6 @@ func derefString(s *string) string {
 		return *s
 	}
 	return ""
-}
-
-func UpdateSheetArsip(c *gin.Context) {
-	dir := "C:\\excel"
-	fileName := "its_report.xlsx"
-	filePath := filepath.Join(dir, fileName)
-
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		c.String(http.StatusBadRequest, "File tidak ada")
-		return
-	}
-
-	f, err := excelize.OpenFile(filePath)
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Error membuka file: %v", err)
-		return
-	}
-	defer f.Close()
-
-	sheetName := "ARSIP"
-
-	if _, err := f.GetSheetIndex(sheetName); err == nil {
-		f.DeleteSheet(sheetName)
-	}
-	f.NewSheet(sheetName)
-
-	f.SetCellValue(sheetName, "A1", "No Arsip")
-	f.SetCellValue(sheetName, "B1", "Jenis Dokumen")
-	f.SetCellValue(sheetName, "C1", "No Dokumen")
-	f.SetCellValue(sheetName, "D1", "Perihal")
-	f.SetCellValue(sheetName, "E1", "No Box")
-	f.SetCellValue(sheetName, "F1", "Keterangan")
-	f.SetCellValue(sheetName, "G1", "Tanggal Dokumen")
-	f.SetCellValue(sheetName, "H1", "Tanggal Penyerahan")
-
-	var arsips []models.Arsip
-	initializers.DB.Find(&arsips)
-
-	for i, arsip := range arsips {
-		rowNum := i + 2
-		f.SetCellValue(sheetName, fmt.Sprintf("A%d", rowNum), arsip.NoArsip)
-		f.SetCellValue(sheetName, fmt.Sprintf("B%d", rowNum), arsip.JenisDokumen)
-		f.SetCellValue(sheetName, fmt.Sprintf("C%d", rowNum), arsip.NoDokumen)
-		f.SetCellValue(sheetName, fmt.Sprintf("D%d", rowNum), arsip.Perihal)
-		f.SetCellValue(sheetName, fmt.Sprintf("E%d", rowNum), arsip.NoBox)
-		f.SetCellValue(sheetName, fmt.Sprintf("F%d", rowNum), arsip.Keterangan)
-		f.SetCellValue(sheetName, fmt.Sprintf("G%d", rowNum), arsip.TanggalDokumen.Format("2006-01-02"))
-		f.SetCellValue(sheetName, fmt.Sprintf("H%d", rowNum), arsip.TanggalPenyerahan.Format("2006-01-02"))
-	}
-
-	if err := f.SaveAs(filePath); err != nil {
-		c.String(http.StatusInternalServerError, "Error menyimpan file: %v", err)
-		return
-	}
 }
 
 func ImportExcelArsip(c *gin.Context) {

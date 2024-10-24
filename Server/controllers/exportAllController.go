@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -759,21 +760,31 @@ func ExportAllSheets(c *gin.Context) {
 					}
 
 					// Pisahkan NoMemo untuk mendapatkan tipe memo
-					parts := strings.Split(*sK.NoSurat, "/")
-					if len(parts) > 1 && parts[1] == "ITS-SAG" {
-						// Isi kolom SAG di sebelah kiri
-						f.SetCellValue("SK", fmt.Sprintf("A%d", rowSAG), tanggal)
-						f.SetCellValue("SK", fmt.Sprintf("B%d", rowSAG), noSurat)
-						f.SetCellValue("SK", fmt.Sprintf("C%d", rowSAG), perihal)
-						f.SetCellValue("SK", fmt.Sprintf("D%d", rowSAG), pic)
-						rowSAG++
-					} else if len(parts) > 1 && parts[1] == "ITS-ISO" {
-						// Isi kolom ISO di sebelah kanan
-						f.SetCellValue("SK", fmt.Sprintf("F%d", rowISO), tanggal)
-						f.SetCellValue("SK", fmt.Sprintf("G%d", rowISO), noSurat)
-						f.SetCellValue("SK", fmt.Sprintf("H%d", rowISO), perihal)
-						f.SetCellValue("SK", fmt.Sprintf("I%d", rowISO), pic)
-						rowISO++
+					parts := strings.Split(noSurat, "/")
+					if len(parts) > 1 {
+						// Cek apakah formatnya adalah 0001/SK/ITS-SAG/2024
+						if len(parts) == 4 && parts[1] == "SK" && parts[2] == "ITS-SAG" {
+							// Isi kolom SAG di sebelah kiri
+							f.SetCellValue("SK", fmt.Sprintf("A%d", rowSAG), tanggal)
+							f.SetCellValue("SK", fmt.Sprintf("B%d", rowSAG), noSurat)
+							f.SetCellValue("SK", fmt.Sprintf("C%d", rowSAG), perihal)
+							f.SetCellValue("SK", fmt.Sprintf("D%d", rowSAG), pic)
+							rowSAG++
+						} else if parts[1] == "ITS-SAG" {
+							// Isi kolom SAG di sebelah kiri
+							f.SetCellValue("SK", fmt.Sprintf("A%d", rowSAG), tanggal)
+							f.SetCellValue("SK", fmt.Sprintf("B%d", rowSAG), noSurat)
+							f.SetCellValue("SK", fmt.Sprintf("C%d", rowSAG), perihal)
+							f.SetCellValue("SK", fmt.Sprintf("D%d", rowSAG), pic)
+							rowSAG++
+						} else if parts[1] == "ITS-ISO" {
+							// Isi kolom ISO di sebelah kanan
+							f.SetCellValue("SK", fmt.Sprintf("F%d", rowISO), tanggal)
+							f.SetCellValue("SK", fmt.Sprintf("G%d", rowISO), noSurat)
+							f.SetCellValue("SK", fmt.Sprintf("H%d", rowISO), perihal)
+							f.SetCellValue("SK", fmt.Sprintf("I%d", rowISO), pic)
+							rowISO++
+						}
 					}
 				}
 
@@ -1485,7 +1496,13 @@ func ExportAllSheets(c *gin.Context) {
 				meetingListSheetName := "MEETING SCHEDULE"
 				for i, meetingList := range meetingLists {
 					rowNum := i + 2 // Start from the second row (first row is header)
-					f.SetCellValue(meetingListSheetName, fmt.Sprintf("A%d", rowNum), *meetingList.Hari)
+					if meetingList.Hari != nil {
+						f.SetCellValue(meetingListSheetName, fmt.Sprintf("A%d", rowNum), *meetingList.Hari)
+					} else {
+						// Handle kasus ketika Hari adalah nil, misal dengan mengatur nilai default atau logging
+						log.Printf("Nil reference for meetingList.Hari at row %d", rowNum)
+						f.SetCellValue(meetingListSheetName, fmt.Sprintf("A%d", rowNum), "Default Value")
+					}
 					f.SetCellValue(meetingListSheetName, fmt.Sprintf("B%d", rowNum), meetingList.Tanggal.Format("2006-01-02"))
 					f.SetCellValue(meetingListSheetName, fmt.Sprintf("C%d", rowNum), *meetingList.Perihal)
 

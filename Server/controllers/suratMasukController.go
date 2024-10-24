@@ -322,7 +322,7 @@ func SuratMasukDelete(c *gin.Context) {
 
 func CreateExcelSuratMasuk(c *gin.Context) {
 	dir := "C:\\excel"
-	baseFileName := "its_report"
+	baseFileName := "its_report_suratmasuk"
 	filePath := filepath.Join(dir, baseFileName+".xlsx")
 
 	// Check if the file already exists
@@ -337,23 +337,17 @@ func CreateExcelSuratMasuk(c *gin.Context) {
 	f := excelize.NewFile()
 
 	// Define sheet names
-	sheetNames := []string{"MEMO", "PROJECT", "PERDIN", "SURAT MASUK", "SURAT KELUAR", "ARSIP", "MEETING", "MEETING SCHEDULE"}
+	sheetName := "SURAT MASUK"
 
 	// Create sheets and set headers for "SURAT MASUK" only
-	for _, sheetName := range sheetNames {
-		if sheetName == "SURAT MASUK" {
-			f.NewSheet(sheetName)
-			f.SetCellValue(sheetName, "A1", "No Surat")
-			f.SetCellValue(sheetName, "B1", "Title Of Letter")
-			f.SetCellValue(sheetName, "C1", "Related Divisi")
-			f.SetCellValue(sheetName, "D1", "Destiny")
-			f.SetCellValue(sheetName, "E1", "Date Issue")
+	f.NewSheet(sheetName)
+	f.SetCellValue(sheetName, "A1", "No Surat")
+	f.SetCellValue(sheetName, "B1", "Title Of Letter")
+	f.SetCellValue(sheetName, "C1", "Related Divisi")
+	f.SetCellValue(sheetName, "D1", "Destiny")
+	f.SetCellValue(sheetName, "E1", "Date Issue")
 
-			f.SetColWidth(sheetName, "A", "E", 20)
-		} else {
-			f.NewSheet(sheetName)
-		}
-	}
+	f.SetColWidth(sheetName, "A", "E", 20)
 
 	styleHeader, err := f.NewStyle(&excelize.Style{
 		Fill: excelize.Fill{
@@ -440,62 +434,6 @@ func CreateExcelSuratMasuk(c *gin.Context) {
 	c.Writer.Write(buf.Bytes())
 }
 
-func UpdateSheetSuratMasuk(c *gin.Context) {
-	dir := "C:\\excel"
-	fileName := "its_report.xlsx"
-	filePath := filepath.Join(dir, fileName)
-
-	// Check if the file exists
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		c.String(http.StatusBadRequest, "File tidak ada")
-		return
-	}
-
-	// Open the existing Excel file
-	f, err := excelize.OpenFile(filePath)
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Error membuka file: %v", err)
-		return
-	}
-	defer f.Close()
-
-	// Define sheet name
-	sheetName := "SURAT MASUK"
-
-	// Check if sheet exists and delete it if it does
-	if _, err := f.GetSheetIndex(sheetName); err == nil {
-		f.DeleteSheet(sheetName)
-	}
-	f.NewSheet(sheetName)
-
-	// Write header row
-	f.SetCellValue(sheetName, "A1", "No Surat")
-	f.SetCellValue(sheetName, "B1", "Title")
-	f.SetCellValue(sheetName, "C1", "Related Divisi")
-	f.SetCellValue(sheetName, "D1", "Destiny Divisi")
-	f.SetCellValue(sheetName, "E1", "Tanggal")
-
-	// Fetch updated data from the database
-	var surat_masuks []models.SuratMasuk
-	initializers.DB.Find(&surat_masuks)
-
-	// Write data rows
-	for i, surat_masuk := range surat_masuks {
-		rowNum := i + 2 // Start from the second row (first row is header)
-		f.SetCellValue(sheetName, fmt.Sprintf("A%d", rowNum), surat_masuk.NoSurat)
-		f.SetCellValue(sheetName, fmt.Sprintf("B%d", rowNum), surat_masuk.Title)
-		f.SetCellValue(sheetName, fmt.Sprintf("C%d", rowNum), surat_masuk.RelatedDiv)
-		f.SetCellValue(sheetName, fmt.Sprintf("D%d", rowNum), surat_masuk.DestinyDiv)
-		f.SetCellValue(sheetName, fmt.Sprintf("E%d", rowNum), surat_masuk.Tanggal.Format("2 January 2006"))
-	}
-
-	if err := f.SaveAs(filePath); err != nil {
-		c.String(http.StatusInternalServerError, "Error saving file: %v", err)
-		return
-	}
-
-}
-
 // Fungsi untuk mengonversi serial Excel ke tanggal
 func excelDateToTimeSuratMasuk(excelDate int) (time.Time, error) {
 	// Excel menggunakan tanggal mulai 1 Januari 1900 (serial 1)
@@ -553,12 +491,22 @@ func ImportExcelSuratMasuk(c *gin.Context) {
 	// Definisikan semua format tanggal yang mungkin
 	dateFormats := []string{
 		"2 January 2006",
+		"02-Jan-06",
 		"2006-01-02",
 		"02-01-2006",
 		"01/02/2006",
 		"2006.01.02",
 		"02/01/2006",
-		"01/07/2024", // Tambahkan format tanggal yang sesuai dengan data yang bermasalah
+		"Jan 2, 06",
+		"Jan 2, 2006",
+		"01/02/06",
+		"02/01/06",
+		"06/02/01",
+		"06/01/02",
+		"06-Jan-02",
+		"02-Jan-06",
+		"1-Jan-06",
+		"06-Jan-02",
 	}
 
 	// Loop melalui baris dan simpan ke database

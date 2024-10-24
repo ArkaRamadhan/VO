@@ -192,7 +192,7 @@ func ProjectCreate(c *gin.Context) {
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Group is required"})
 		return
-	}	
+	}
 
 	var bulan *time.Time
 	if requestBody.Bulan != nil && *requestBody.Bulan != "" {
@@ -231,7 +231,7 @@ func ProjectCreate(c *gin.Context) {
 		tanggal_tor = &parsedTanggalTor
 	}
 
-	log.Printf("Parsed date: %v", tanggal_tor) 
+	log.Printf("Parsed date: %v", tanggal_tor)
 
 	requestBody.KodeProject = &newKodeProject
 
@@ -428,166 +428,6 @@ func ProjectDelete(c *gin.Context) {
 	c.Status(204)
 }
 
-func CreateExcelProject(c *gin.Context) {
-	dir := "D:\\excel"
-	baseFileName := "its_report"
-	filePath := filepath.Join(dir, baseFileName+".xlsx")
-
-	// Check if the file already exists
-	if _, err := os.Stat(filePath); err == nil {
-		// File exists, append "_new" to the file name
-		baseFileName += "_new"
-	}
-
-	fileName := baseFileName + ".xlsx"
-
-	// Create a new Excel file
-	f := excelize.NewFile()
-
-	// Define sheet names
-	sheetNames := []string{"MEMO", "PROJECT", "PERDIN", "SURAT MASUK", "SURAT KELUAR", "ARSIP", "MEETING", "MEETING SCHEDULE"}
-
-	// Create sheets and set headers
-	for _, sheetName := range sheetNames {
-		f.NewSheet(sheetName)
-		if sheetName == "PROJECT" {
-			f.SetCellValue(sheetName, "A1", "Kode Project")
-			f.SetCellValue(sheetName, "B1", "Jenis Pengadaan")
-			f.SetCellValue(sheetName, "C1", "Nama Pengadaan")
-			f.SetCellValue(sheetName, "D1", "Divisi Inisiasi")
-			f.SetCellValue(sheetName, "E1", "Bulan")
-			f.SetCellValue(sheetName, "F1", "Sumber Pendanaan")
-			f.SetCellValue(sheetName, "G1", "Anggaran")
-			f.SetCellValue(sheetName, "H1", "No Izin")
-			f.SetCellValue(sheetName, "I1", "Tgl Izin")
-			f.SetCellValue(sheetName, "J1", "Tgl TOR")
-			f.SetCellValue(sheetName, "K1", "Pic")
-
-			f.SetColWidth(sheetName, "A", "K", 20)
-		}
-	}
-
-	// Fetch initial data from the database
-	var projects []models.Project
-	initializers.DB.Find(&projects)
-
-	// Write initial data to the "PROJECT" sheet
-	projectSheetName := "PROJECT"
-	for i, project := range projects {
-		izinString := project.TanggalIzin.Format("02-01-2006")
-		torString := project.TanggalTor.Format("02-01-2006")
-		bulanString := project.Bulan.Format("02-01-2006")
-		rowNum := i + 2 // Start from the second row (first row is header)
-
-		// Ensure data is correctly written to cells
-		f.SetCellValue(projectSheetName, fmt.Sprintf("A%d", rowNum), project.KodeProject)
-		f.SetCellValue(projectSheetName, fmt.Sprintf("B%d", rowNum), project.JenisPengadaan)
-		f.SetCellValue(projectSheetName, fmt.Sprintf("C%d", rowNum), project.NamaPengadaan)
-		f.SetCellValue(projectSheetName, fmt.Sprintf("D%d", rowNum), project.DivInisiasi)
-		f.SetCellValue(projectSheetName, fmt.Sprintf("E%d", rowNum), bulanString) // Ensure this is the correct format
-		f.SetCellValue(projectSheetName, fmt.Sprintf("F%d", rowNum), project.SumberPendanaan)
-		f.SetCellValue(projectSheetName, fmt.Sprintf("G%d", rowNum), project.Anggaran)
-		f.SetCellValue(projectSheetName, fmt.Sprintf("H%d", rowNum), project.NoIzin)
-		f.SetCellValue(projectSheetName, fmt.Sprintf("I%d", rowNum), izinString)
-		f.SetCellValue(projectSheetName, fmt.Sprintf("J%d", rowNum), torString)
-		f.SetCellValue(projectSheetName, fmt.Sprintf("K%d", rowNum), project.Pic)
-	}
-
-	// Delete the default "Sheet1" sheet if it exists
-	if err := f.DeleteSheet("Sheet1"); err != nil {
-		c.String(http.StatusInternalServerError, "Error deleting default sheet: %v", err)
-		return
-	}
-
-	// Save the newly created file
-	buf, err := f.WriteToBuffer()
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Error saving file: %v", err)
-		return
-	}
-
-	// Serve the file to the client
-	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", fileName))
-	c.Writer.Write(buf.Bytes())
-}
-
-func UpdateSheetProject(c *gin.Context) {
-	dir := "D:\\excel"
-	fileName := "its_report.xlsx"
-	filePath := filepath.Join(dir, fileName)
-
-	// Check if the file exists
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		c.String(http.StatusBadRequest, "File tidak ada")
-		return
-	}
-
-	// Open the existing Excel file
-	f, err := excelize.OpenFile(filePath)
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Error membuka file: %v", err)
-		return
-	}
-	defer f.Close()
-
-	// Define sheet name
-	sheetName := "PROJECT"
-
-	// Check if sheet exists and delete it if it does
-	if _, err := f.GetSheetIndex(sheetName); err == nil {
-		f.DeleteSheet(sheetName)
-	}
-	f.NewSheet(sheetName)
-
-	// Write header row
-	f.SetCellValue(sheetName, "A1", "Kode Project")
-	f.SetCellValue(sheetName, "B1", "Jenis Pengadaan")
-	f.SetCellValue(sheetName, "C1", "Nama Pengadaan")
-	f.SetCellValue(sheetName, "D1", "Divisi Inisiasi")
-	f.SetCellValue(sheetName, "E1", "Bulan")
-	f.SetCellValue(sheetName, "F1", "Sumber Pendanaan")
-	f.SetCellValue(sheetName, "G1", "Anggaran")
-	f.SetCellValue(sheetName, "H1", "No Izin")
-	f.SetCellValue(sheetName, "I1", "Tgl Izin")
-	f.SetCellValue(sheetName, "J1", "Tgl TOR")
-	f.SetCellValue(sheetName, "K1", "Pic")
-
-	// Fetch updated data from the database
-	var projects []models.Project
-	initializers.DB.Find(&projects)
-
-	// Write data rows
-	for i, project := range projects {
-		rowNum := i + 2 // Start from the second row (first row is header)
-
-		// Convert date to string with specific format
-		bulanString := project.Bulan.Format("02-01-2006")
-
-		f.SetCellValue(sheetName, fmt.Sprintf("A%d", rowNum), project.KodeProject)
-		f.SetCellValue(sheetName, fmt.Sprintf("B%d", rowNum), project.JenisPengadaan)
-		f.SetCellValue(sheetName, fmt.Sprintf("C%d", rowNum), project.NamaPengadaan)
-		f.SetCellValue(sheetName, fmt.Sprintf("D%d", rowNum), project.DivInisiasi)
-		f.SetCellValue(sheetName, fmt.Sprintf("E%d", rowNum), bulanString) // Write month as text
-		f.SetCellValue(sheetName, fmt.Sprintf("F%d", rowNum), project.SumberPendanaan)
-		f.SetCellValue(sheetName, fmt.Sprintf("G%d", rowNum), project.Anggaran)
-		f.SetCellValue(sheetName, fmt.Sprintf("H%d", rowNum), project.NoIzin)
-		f.SetCellValue(sheetName, fmt.Sprintf("I%d", rowNum), project.TanggalIzin.Format("02-01-2006"))
-		f.SetCellValue(sheetName, fmt.Sprintf("J%d", rowNum), project.TanggalTor.Format("02-01-2006"))
-		f.SetCellValue(sheetName, fmt.Sprintf("K%d", rowNum), project.Pic)
-
-		f.SetColWidth(sheetName, "A", "K", 20)
-	}
-
-	// Save the file with updated data
-	if err := f.SaveAs(filePath); err != nil {
-		c.String(http.StatusInternalServerError, "Error menyimpan file: %v", err)
-		return
-	}
-
-	c.Redirect(http.StatusFound, "/Project")
-}
-
 func ImportExcelProject(c *gin.Context) {
 	log.Println("Starting ImportExcelProject function")
 
@@ -637,10 +477,6 @@ func ImportExcelProject(c *gin.Context) {
 			log.Printf("Skipping row %d (header or initial rows)", i+1)
 			continue
 		}
-
-		// Log nilai sebelum parsing
-		log.Printf("Row %d: Bulan=%s, TanggalIzin=%s, TanggalTor=%s", i+1, getColumn(row, 5), getColumn(row, 9), getColumn(row, 10))
-
 		// Count non-empty columns
 		nonEmptyCount := 0
 		for _, cell := range row {
@@ -679,7 +515,7 @@ func ImportExcelProject(c *gin.Context) {
 		}
 
 		// Log data yang diimpor
-		log.Printf("Importing row %d: %+v", i+1, project)
+		log.Printf("Importing row %d", i+1)
 
 		if err := initializers.DB.Create(&project).Error; err != nil {
 			log.Printf("Error saving record from row %d: %v", i+1, err)
@@ -713,6 +549,7 @@ func getStringOrNil(value string) *string {
 func parseDate(dateStr string) (time.Time, error) {
 	dateFormats := []string{
 		"2 January 2006",
+		"02-06",
 		"2-January-2006",
 		"2006-01-02",
 		"02-01-2006",
@@ -728,6 +565,12 @@ func parseDate(dateStr string) (time.Time, error) {
 		"06-Jan-02",
 		"01/06",
 		"02/06",
+		"Jan-06", // Menambahkan format ini untuk mengenali "Feb-24" sebagai "Feb-2024"
+	}
+
+	// Menambahkan logika untuk menangani format "Feb-24"
+	if strings.Contains(dateStr, "-") && len(dateStr) == 5 {
+		dateStr = dateStr[:3] + "20" + dateStr[4:]
 	}
 
 	for _, format := range dateFormats {
@@ -766,25 +609,23 @@ func exportProjectToExcel(projects []models.Project) (*excelize.File, error) {
 	f := excelize.NewFile()
 
 	// Create sheets
-	sheetNames := []string{"MEMO", "BERITA ACARA", "SK", "SURAT", "PROJECT", "PERDIN", "SURAT MASUK", "SURAT KELUAR", "ARSIP", "MEETING", "MEETING SCHEDULE"}
-	for _, sheetName := range sheetNames {
-		f.NewSheet(sheetName)
-		if sheetName == "PROJECT" {
-			// Set header for SAG (left column)
-			f.SetCellValue(sheetName, "A1", "Kode Project")
-			f.SetCellValue(sheetName, "B1", "Jenis Pengadaan")
-			f.SetCellValue(sheetName, "C1", "Nama Pengadaan")
-			f.SetCellValue(sheetName, "D1", "Divisi Inisiasi")
-			f.SetCellValue(sheetName, "E1", "Bulan")
-			f.SetCellValue(sheetName, "F1", "Sumber Pendanaan")
-			f.SetCellValue(sheetName, "G1", "Anggaran")
-			f.SetCellValue(sheetName, "H1", "No Izin")
-			f.SetCellValue(sheetName, "I1", "Tgl Izin")
-			f.SetCellValue(sheetName, "J1", "Tgl TOR")
-			f.SetCellValue(sheetName, "K1", "Pic")
-			f.SetCellValue(sheetName, "F2", "SAG")
-		}
-	}
+	sheetName := "PROJECT"
+	f.NewSheet(sheetName)
+
+	// Set header for SAG (left column)
+	f.SetCellValue(sheetName, "A1", "Kode Project")
+	f.SetCellValue(sheetName, "B1", "Jenis Pengadaan")
+	f.SetCellValue(sheetName, "C1", "Nama Pengadaan")
+	f.SetCellValue(sheetName, "D1", "Divisi Inisiasi")
+	f.SetCellValue(sheetName, "E1", "Bulan")
+	f.SetCellValue(sheetName, "F1", "Sumber Pendanaan")
+	f.SetCellValue(sheetName, "G1", "Anggaran")
+	f.SetCellValue(sheetName, "H1", "No Izin")
+	f.SetCellValue(sheetName, "I1", "Tgl Izin")
+	f.SetCellValue(sheetName, "J1", "Tgl TOR")
+	f.SetCellValue(sheetName, "K1", "Pic")
+	f.SetCellValue(sheetName, "F2", "SAG")
+
 	f.DeleteSheet("Sheet1")
 
 	styleHeader, err := f.NewStyle(&excelize.Style{
@@ -929,7 +770,7 @@ func exportProjectToExcel(projects []models.Project) (*excelize.File, error) {
 			f.SetCellValue("PROJECT", fmt.Sprintf("D%d", rowISO), divInisiasi)
 			f.SetCellValue("PROJECT", fmt.Sprintf("E%d", rowISO), bulan)
 			f.SetCellValue("PROJECT", fmt.Sprintf("F%d", rowISO), sumberPendanaan)
-			
+
 			if project.Anggaran != nil {
 				anggaran, err := strconv.ParseInt(*project.Anggaran, 10, 64)
 				if err != nil {
@@ -1017,7 +858,7 @@ func ExportProjectHandler(c *gin.Context) {
 	}
 
 	// Set nama file dan header untuk download
-	fileName := fmt.Sprintf("its_report.xlsx")
+	fileName := fmt.Sprintf("its_report_project.xlsx")
 	c.Header("Content-Disposition", "attachment; filename="+fileName)
 	c.Header("Content-Type", "application/octet-stream")
 
