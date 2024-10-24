@@ -7,7 +7,7 @@ export const LoginPage = () => {
   const { token } = useToken();
   if (token) return <Navigate to="/dashboard" />;
   return (
-    <AuthLayout header="Halaman Login">
+    <AuthLayout header="Aplikasi Divisi ITS">
       <LoginForm />
     </AuthLayout>
   );

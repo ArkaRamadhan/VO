@@ -230,7 +230,7 @@ const App = ({ services, children }) => {
     <div className="grid grid-cols-2fr">
       <Sidebar
         img="../../../public/images/logobjb.png"
-        title="IT Security"
+        title="Divisi IT Security"
         username={userDetails.username}
         email={userDetails.email}
       >

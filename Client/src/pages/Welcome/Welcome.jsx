@@ -1,4 +1,4 @@
-import { useToken } from "../../context/TokenContext";
+  import { useToken } from "../../context/TokenContext";
 import { Link, Navigate } from "react-router-dom";
 import "../../welcome.css";
 export function WelcomePage() {
@@ -13,7 +13,7 @@ export function WelcomePage() {
           alt="bjb"
         />
         <h1 className="mb-4 text-4xl font-extrabold tracking-tight leading-none text-slate-100 md:text-4xl lg:text-5xl ">
-          Selamat Datang di Dashboard ITS
+          Dashboard IT Security
         </h1>
         <p className="mb-8 text-lg font-normal text-slate-100 lg:text-xl sm:px-16 xl:px-48 ">
           Aplikasi ini digunakan untuk Mempermudah dalam Mengelola Proyek dan

@@ -139,8 +139,8 @@ export const RequestPage = () => {
                         );
                     })
                 ) : (
-                    <div style={{ width: "100%", textAlign: "center", marginTop: "20px" }}>
-                        <p>There are no records to display</p> Tidak ada jadwal bentrok
+                    <div style={{ width: "100%",height: "80vh", display: "flex", justifyContent: "center", alignItems: "center", marginTop: "20px" }}>
+                        Tidak ada jadwal bentrok
                     </div>
                 )}
             </div>
